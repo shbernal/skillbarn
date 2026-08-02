@@ -48,7 +48,7 @@ identifies it — that last one so a project unpacked from a tarball, which has 
 still installs. Anything else is refused with a pointer to `skb init`, which exists
 precisely so there is something to point at.
 
-All six commands refuse, including the read-only ones. `skb verify` run from the wrong
+Every command but `init` refuses, the read-only ones included. `skb verify` run from the wrong
 directory would otherwise report `ok` for a project it never found, and a false green in
 CI is worse than the noise of one extra check.
 
