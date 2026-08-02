@@ -1,6 +1,5 @@
 import { join } from 'node:path'
 import { installIntoStaging, STAGING_SKILLS_DIR } from './clawhub.ts'
-import type { Project } from './config.ts'
 import { compareFileHashes, excludeFromDigest, type FileHash, treeDigest } from './digest.ts'
 import { SkbError } from './errors.ts'
 import {
@@ -12,7 +11,7 @@ import {
   removePath,
 } from './fs-tree.ts'
 import type { Lock } from './lock.ts'
-import { ignoredDirNames, installDirName, skillPath } from './project.ts'
+import { ignoredDirNames, installDirName, type Project, skillPath } from './project.ts'
 import { formatSkillRef, type SkillRef } from './slug.ts'
 import { withStaging } from './staging.ts'
 

@@ -1,6 +1,5 @@
-import { loadProject } from '../config.ts'
 import { checkInvariants, formatViolations } from '../invariants.ts'
-import { requireIdentifiedProject } from '../project.ts'
+import { loadProject, requireIdentifiedProject } from '../project.ts'
 import { err, out } from '../ui.ts'
 
 export type VerifyOptions = {

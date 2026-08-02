@@ -1,10 +1,10 @@
 import { requireClawhub } from '../clawhub.ts'
-import { loadProject } from '../config.ts'
 import { SkbError } from '../errors.ts'
 import { digestTree, isDirectory } from '../fs-tree.ts'
 import { reconcile } from '../lock.ts'
 import {
   entryPath,
+  loadProject,
   readLockFile,
   readManifestFile,
   requireIdentifiedProject,
@@ -34,10 +34,10 @@ export async function cmdInstall(options: InstallOptions): Promise<number> {
   const plan = reconcile(manifest, lock)
 
   for (const ref of plan.missingFromLock) {
-    err(`warning: ${ref} is in skills.json but not locked — run \`skb add ${ref}\``)
+    err(`warning: ${ref} is in skillbarn.json but not locked — run \`skb add ${ref}\``)
   }
   for (const slug of plan.staleInLock) {
-    err(`warning: ${slug} is locked but not in skills.json — run \`skb remove ${slug}\``)
+    err(`warning: ${slug} is locked but not in skillbarn.json — run \`skb remove ${slug}\``)
   }
 
   // Before anything else: a crash between install and flatten leaves a scoped

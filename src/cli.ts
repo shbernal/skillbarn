@@ -27,9 +27,9 @@ options
   --force         overwrite an existing local copy
   --help, -h      this text
 
-The project is the nearest skillbarn.json, else the git root. Skills land in
-.agents/skills/<slug>/, gitignored from a committed skillbarn.lock.
-Configure with skillbarn.json: dir, flatten, gitignore.`
+The project is the nearest skillbarn.json, else the git root. That one file holds
+both the configuration (dir, flatten, gitignore) and the declared skills. Skills land
+in .agents/skills/<slug>/, gitignored from a committed skillbarn.lock.`
 
 type Flags = {
   values: Map<string, string | boolean>

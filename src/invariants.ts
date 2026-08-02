@@ -1,10 +1,9 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { loadProject } from './config.ts'
 import { digestTree, isDirectory, pathExists, readDirNames } from './fs-tree.ts'
 import { renderGitignore } from './gitignore.ts'
 import { lockedSlugs } from './lock.ts'
-import { entryPath, gitignorePath, ignoredDirNames, readLockFile } from './project.ts'
+import { entryPath, gitignorePath, ignoredDirNames, loadProject, readLockFile } from './project.ts'
 import { activeStagingDirs } from './staging.ts'
 
 /**

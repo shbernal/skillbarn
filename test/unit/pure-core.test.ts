@@ -8,6 +8,7 @@ import {
   treeDigest,
 } from '../../src/digest.ts'
 import { SkbError } from '../../src/errors.ts'
+import { renderProjectCreation } from '../../src/gate.ts'
 import { GITIGNORE_HEADER, renderGitignore } from '../../src/gitignore.ts'
 import {
   emptyLock,
@@ -17,7 +18,14 @@ import {
   reconcile,
   renderLock,
 } from '../../src/lock.ts'
-import { type Manifest, parseManifest, renderManifest } from '../../src/manifest.ts'
+import {
+  DEFAULT_CONFIG,
+  emptyManifest,
+  type Manifest,
+  newManifest,
+  parseManifest,
+  renderManifest,
+} from '../../src/manifest.ts'
 import { formatSkillRef, parseSkillRef } from '../../src/slug.ts'
 
 const name = fc.stringMatching(/^[a-z0-9][a-z0-9._-]{0,20}$/).filter((s) => /[a-z0-9]$/.test(s))
@@ -236,13 +244,65 @@ describe('lock and manifest', () => {
     expect(() => parseManifest('{"skills": {"greeter": {}}}')).toThrow(SkbError)
   })
 
+  it('carries the config half and unknown keys through a rewrite', () => {
+    const manifest = parseManifest(`{
+      "$schema": "https://example.com/skillbarn.json",
+      "dir": ".claude/skills",
+      "gitignore": "off",
+      "skills": { "@fixture/greeter": { "source": "clawhub", "version": "1.2.0" } }
+    }`)
+
+    expect(manifest.config).toEqual({ dir: '.claude/skills', gitignore: 'off' })
+    expect(manifest.extra).toEqual({ $schema: 'https://example.com/skillbarn.json' })
+    expect(parseManifest(renderManifest(manifest))).toEqual(manifest)
+  })
+
+  // `add` rewrites this file. A key nobody set must not appear as a side effect of that,
+  // or the project silently pins a default it never chose.
+  it('writes skills last and materializes no default', () => {
+    expect(renderManifest(parseManifest('{"dir": "skills"}'))).toBe(
+      '{\n  "dir": "skills",\n  "skills": {}\n}\n',
+    )
+  })
+
+  it('writes the defaults into a manifest it creates, and nowhere else', () => {
+    expect(renderManifest(newManifest())).toBe(
+      '{\n  "dir": ".agents/skills",\n  "flatten": true,\n  "gitignore": "managed",\n  "skills": {}\n}\n',
+    )
+    // The same defaults are in force for a file that omits them, and stay unwritten.
+    expect(renderManifest(parseManifest('{}'))).toBe('{\n  "skills": {}\n}\n')
+  })
+
+  it('refuses a config value it cannot honour', () => {
+    expect(() => parseManifest('{"dir": "../elsewhere"}')).toThrow(SkbError)
+    expect(() => parseManifest('{"dir": ""}')).toThrow(SkbError)
+    expect(() => parseManifest('{"gitignore": "sometimes"}')).toThrow(SkbError)
+    expect(() => parseManifest('{"flatten": "yes"}')).toThrow(SkbError)
+  })
+
   it('round-trips a manifest', () => {
     fc.assert(
       fc.property(fc.uniqueArray(scopedRef), (refs) => {
-        const manifest: Manifest = { skills: {} }
+        const manifest: Manifest = emptyManifest()
         for (const ref of refs) manifest.skills[ref] = { source: 'clawhub', version: '1.0.0' }
         expect(parseManifest(renderManifest(manifest))).toEqual(manifest)
       }),
+    )
+  })
+})
+
+describe('the project-creation disclosure', () => {
+  it('shows every setting that will take effect', () => {
+    expect(renderProjectCreation('/repo/skillbarn.json', DEFAULT_CONFIG)).toBe(
+      [
+        '  no skillbarn project here yet — this will create /repo/skillbarn.json',
+        '',
+        '    dir        .agents/skills',
+        '    flatten    true',
+        '    gitignore  managed',
+        '',
+        '  every field is optional and editable afterwards; see the README.',
+      ].join('\n'),
     )
   })
 })
@@ -251,7 +311,7 @@ describe('reconcile', () => {
   it('converges: a lock built from the manifest reports no difference', () => {
     fc.assert(
       fc.property(fc.uniqueArray(name), (slugs) => {
-        const manifest: Manifest = { skills: {} }
+        const manifest: Manifest = emptyManifest()
         const lock = emptyLock()
         for (const slug of slugs) {
           manifest.skills[`@fixture/${slug}`] = { source: 'clawhub', version: '1.0.0' }
@@ -266,7 +326,10 @@ describe('reconcile', () => {
   })
 
   it('restores the lock, not the manifest', () => {
-    const manifest: Manifest = { skills: { '@fixture/wanted': { source: 'clawhub' } } }
+    const manifest: Manifest = {
+      ...emptyManifest(),
+      skills: { '@fixture/wanted': { source: 'clawhub' } },
+    }
     const lock = emptyLock()
     lock.skills.locked = entry('locked')
 
@@ -277,7 +340,10 @@ describe('reconcile', () => {
   })
 
   it('is stable under repetition', () => {
-    const manifest: Manifest = { skills: { '@fixture/a': { source: 'clawhub' } } }
+    const manifest: Manifest = {
+      ...emptyManifest(),
+      skills: { '@fixture/a': { source: 'clawhub' } },
+    }
     const lock = emptyLock()
     lock.skills.b = entry('b')
     expect(reconcile(manifest, lock)).toEqual(reconcile(manifest, lock))

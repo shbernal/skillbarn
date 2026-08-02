@@ -1,5 +1,6 @@
 import { parseFrontmatter } from './frontmatter.ts'
 import type { InspectResult } from './inspect.ts'
+import type { SkillbarnConfig } from './manifest.ts'
 
 /**
  * What `skb add` shows before installing anything.
@@ -140,6 +141,26 @@ function firstParagraph(body: string): string {
     .replace(/^#+\s*/, '')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/**
+ * The block `skb add` prints above the skill summary when the project has no manifest
+ * yet, so the settings about to take effect are read once rather than inherited silently.
+ *
+ * It rides the confirmation `add` already asks rather than adding a second prompt: the
+ * existing gate is default-no because the payload is instructions an agent will execute,
+ * and two prompts in a row is how that one stops being read.
+ */
+export function renderProjectCreation(manifestPath: string, config: SkillbarnConfig): string {
+  return [
+    `  no skillbarn project here yet — this will create ${manifestPath}`,
+    '',
+    `    dir        ${config.dir}`,
+    `    flatten    ${config.flatten}`,
+    `    gitignore  ${config.gitignore}`,
+    '',
+    '  every field is optional and editable afterwards; see the README.',
+  ].join('\n')
 }
 
 /** The block `skb add` prints before asking for confirmation. */

@@ -39,14 +39,14 @@ release cadence to a CLI whose auth and versioning are deliberately not its prob
 
 A global binary that guesses the project from the cwd has one failure mode a local one
 does not: `skb add @owner/slug` typed in a home directory. Nothing about that directory
-says "project", so the pre-refusal behaviour would have been to create `skills.json`,
+says "project", so the pre-refusal behaviour would have been to create `skillbarn.json`,
 `skillbarn.lock` and a skills tree in `~`.
 
 So the root has to be *identified*, not merely defaulted. `skillbarn.json` identifies it,
-a `.git` directory identifies it, and an existing `skills.json` or `skillbarn.lock`
-identifies it — that last one so a project unpacked from a tarball, which has no `.git`,
-still installs. Anything else is refused with a pointer to `skb init`, which exists
-precisely so there is something to point at.
+a `.git` directory identifies it, and a `skillbarn.lock` identifies it — that last one so a
+project unpacked from a tarball, which has no `.git`, still installs. Anything else is
+refused with a pointer to `skb init`, which exists precisely so there is something to point
+at.
 
 Every command but `init` refuses, the read-only ones included. `skb verify` run from the wrong
 directory would otherwise report `ok` for a project it never found, and a false green in
@@ -113,15 +113,78 @@ The digest rule:
 - symlinks hash as `symlink:<target>` and are never followed, so a vendored tree cannot
   make its own digest depend on something outside itself
 
-## `skills.json` is intent, `skillbarn.lock` is fact
+## `skillbarn.json` is intent, `skillbarn.lock` is fact
 
-Two files, as npm has them. `add` and `remove` write both; `install` obeys the lock alone
-and *reports* disagreement instead of resolving it. There is no semver resolution and no
-dependency graph — skills are leaf nodes, and a resolver is where this becomes a year of
-work.
+Two files at the project root, as npm has them. `add` and `remove` write both; `install`
+obeys the lock alone and *reports* disagreement instead of resolving it. There is no semver
+resolution and no dependency graph — skills are leaf nodes, and a resolver is where this
+becomes a year of work.
 
 `install` never writes the lock. That one rule is what makes a fresh clone reproducible:
 the only way the lock changes is a human running `add` or `remove`.
+
+## The configuration lives in the manifest, not beside it
+
+`dir`, `flatten` and `gitignore` were a third root file for one iteration — a
+`skillbarn.json` config next to a `skills.json` manifest. That pairing was wrong twice
+over: it spent three files at someone's repo root for a tool this small, and it gave the
+tool's own name to the file people would edit *least*.
+
+The settings are project-shape rather than per-machine — committed, shared, identical for
+everyone on the checkout — so nothing but the file boundary separated them from the
+declarations, and `package.json` is the standing proof that the boundary is not needed.
+Merging also removed a precedence rule instead of adding one: the config file was the
+project marker but was optional, so "what makes a directory a project" had to be answered
+across three files at different priorities. Now `skillbarn.json` *is* the answer, with the
+lock left as the single piece of separate evidence.
+
+The cost is real and it is paid deliberately: `add` and `remove` rewrite a file that has a
+hand-authored half. So the rewrite preserves everything it does not own. Config keys are
+written back exactly as they were found, unrecognized top-level keys — a `$schema`, a field
+from a later skillbarn — are carried through untouched, and no key is ever added to a file
+someone else wrote: materializing a default there would pin a decision nobody made against
+a later change of default. `skills` renders last because it is the half that grows.
+
+## Creating the manifest is not the same as rewriting it
+
+The rule above is about rewrites. A manifest skillbarn *creates* has no author to
+contradict, so it states its configuration in full — `dir`, `flatten` and `gitignore`, at
+their defaults. `newManifest()` in `src/manifest.ts` is the single source of that file, and
+`init` and `add` both go through it, so which command happened to create the project does
+not show in the result.
+
+The alternative, which was tried, is that `add` in a bare git repo writes only the `skills`
+half. It keeps the never-materialize rule uniform, and the file stays honest about what was
+chosen — but the settings are then in force invisibly, discoverable only from the README.
+For a committed, shared file, that is the worse failure: the pinning it avoids is what a
+project actually wants, since everyone on the checkout should get the same layout whatever
+skillbarn they run.
+
+Writing the file is still a surprise if nothing said it was coming, so **`add` discloses
+it**. When the project has no manifest, the block above the confirmation names the file it
+will create and lists the settings, and the question becomes `create skillbarn.json and
+install …?`. It rides the gate `add` already asks rather than adding a second prompt: that
+gate is default-no because the payload is instructions an agent will execute, and two
+prompts in a row is how it stops being read. `--yes` skips it like any other confirmation;
+the safety net for a directory that is *not* a project is
+[the refusal](#inferring-the-project-means-refusing-when-there-is-none), not this.
+
+## Wiring loaders up is not skillbarn's job, for now
+
+The obvious companion to that prompt is an offer to symlink `.claude/skills` at the
+vendored tree. It is declined, for three reasons that all point the same way.
+
+It writes outside the configured skills directory, which is the one boundary that makes the
+blast radius of every command statable in a sentence. Nothing would own the link afterwards
+— `remove` does not clean it up, and `checkInvariants()` has no vocabulary for a path
+outside the tree. And the single-loader user does not need it: `skb init --dir
+.claude/skills` is already the answer, so the symlink only helps people running two loaders
+over one tree, who are the people most able to run `ln -s`.
+
+`resolveRealPath()` in `src/project.ts` already makes skillbarn correct when that symlink
+exists, which is the right division: the user creates it, skillbarn follows it. If the
+papercut proves common enough, it wants an explicit `skb link <loader>` with its own
+confirmation and its own invariants — deferred until then, and never a rider on `add`.
 
 ## The ignore list is derived from the lock
 

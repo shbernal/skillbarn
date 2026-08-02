@@ -23,7 +23,7 @@ export type FixtureProject = {
 
 export type FixtureOptions = {
   mode?: FakeMode
-  /** Written to `skillbarn.json`. Omitted entirely when absent. */
+  /** Written to `skillbarn.json` as its config half. Omitted entirely when absent. */
   config?: Record<string, unknown>
   /** Hand-authored skills that must survive every command. */
   localSkills?: string[]

@@ -22,7 +22,7 @@ install @seanford/humanizer@1.0.0? [y/N] y
 added @seanford/humanizer@1.0.0 -> .agents/skills/humanizer
 ```
 
-Commit `skills.json` and `skillbarn.lock`; `.agents/skills/humanizer/` is ignored. In a
+Commit `skillbarn.json` and `skillbarn.lock`; `.agents/skills/humanizer/` is ignored. In a
 fresh clone, `skb install` puts back exactly those bytes or fails.
 
 ## Install
@@ -53,21 +53,25 @@ schedule. A missing `clawhub` is a runtime error naming the install command.
 The project root is the nearest directory with a `skillbarn.json`, and failing that the
 git root. If neither exists, skillbarn refuses rather than treating the working directory
 as a project — a global `skb add` mistyped in a home directory should not quietly create
-one there. A directory that already holds a `skills.json` or `skillbarn.lock` counts as a
-project on its own, so an unpacked tarball with no `.git` still installs.
+one there. A `skillbarn.lock` counts on its own too, so an unpacked tarball with no `.git`
+still installs.
 
-`skb init` writes the config that settles it, and is also how you point skillbarn at the
+`skb init` writes the manifest that settles it, and is also how you point skillbarn at the
 directory your agent actually reads:
 
 ```sh
 skb init --dir .claude/skills
 ```
 
+You do not have to run it first. In a git repo with no manifest, `skb add` creates one —
+but it shows you the settings it is about to write and folds that into the confirmation it
+already asks, so nothing appears at your repo root unannounced.
+
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `skb init` | Write `skillbarn.json` here. `--dir <path>`. Never overwrites an existing config. |
+| `skb init` | Write `skillbarn.json` here. `--dir <path>`. Never overwrites an existing one. |
 | `skb add <@owner/slug>` | Show the skill, ask, install it, record it. `--version`, `--yes`, `--force`. |
 | `skb install` | Restore exactly what the lock records. `--force` overwrites local edits. |
 | `skb remove <slug>` | Delete the directory and both records. Never touches the registry. |
@@ -76,18 +80,27 @@ skb init --dir .claude/skills
 
 ## Configuration
 
-`skillbarn.json` at the project root, written by `skb init` and all fields optional:
+`skillbarn.json` holds both halves, the way `package.json` does: how the project is
+configured, and what it declares. Whichever command creates it writes the config out in
+full, and every field is optional — delete the ones you have no opinion about.
 
 ```json
 {
   "dir": ".agents/skills",
   "flatten": true,
-  "gitignore": "managed"
+  "gitignore": "managed",
+  "skills": {
+    "@seanford/humanizer": { "source": "clawhub", "version": "1.0.0" }
+  }
 }
 ```
 
+`add` and `remove` rewrite the `skills` half and leave everything else — including keys
+skillbarn does not recognize — exactly as you wrote it.
+
 `gitignore: "off"` if you would rather commit the skills. skillbarn never symlinks into
-`.claude/skills` or anywhere else — if you want that, make the symlink yourself.
+`.claude/skills` or anywhere else — if you want that, make the symlink yourself; skillbarn
+follows one it finds and writes into the real tree.
 
 **Which `dir` your agent actually reads.** `.agents/skills` is a project skill root for
 OpenClaw, but Claude Code (measured against 2.1.220) does not scan it — it reads
@@ -106,7 +119,7 @@ writes into the real tree. Full table in [docs/loaders.md](docs/loaders.md).
   advertises. `skb install` refuses on a mismatch rather than warning.
 - **The ignore list is derived from the lock**, not from a path heuristic, so
   hand-authored skills in the same directory stay tracked and untouched.
-- **`skills.json` is intent, `skillbarn.lock` is fact.** No semver resolution, no
+- **`skillbarn.json` is intent, `skillbarn.lock` is fact.** No semver resolution, no
   dependency graph — skills are leaf nodes.
 
 The reasoning behind each of those, and the measurements they rest on, is in

@@ -1,11 +1,11 @@
 import { join } from 'node:path'
-import { loadProject } from '../config.ts'
 import { digestTree, isDirectory, pathExists, readDirNames } from '../fs-tree.ts'
 import { lockedSlugs } from '../lock.ts'
 import {
   entryDirName,
   entryPath,
   ignoredDirNames,
+  loadProject,
   readLockFile,
   requireIdentifiedProject,
 } from '../project.ts'

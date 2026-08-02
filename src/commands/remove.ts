@@ -1,8 +1,8 @@
-import { loadProject } from '../config.ts'
 import { SkbError } from '../errors.ts'
 import { removePath } from '../fs-tree.ts'
 import {
   entryPath,
+  loadProject,
   readLockFile,
   readManifestFile,
   requireIdentifiedProject,

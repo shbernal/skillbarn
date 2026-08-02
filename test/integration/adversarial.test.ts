@@ -113,7 +113,7 @@ describe('a directory that nothing identifies as a project', () => {
       hint: expect.stringContaining('skb init'),
     })
 
-    expect(await pathExists(join(project.root, 'skills.json'))).toBe(false)
+    expect(await pathExists(join(project.root, 'skillbarn.json'))).toBe(false)
     expect(await pathExists(join(project.root, 'skillbarn.lock'))).toBe(false)
     expect(await pathExists(join(project.skillsDir, 'greeter'))).toBe(false)
   })

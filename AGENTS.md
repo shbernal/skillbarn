@@ -32,7 +32,7 @@ Both are cheap; do not skip them.
 ```
 src/
   slug lock manifest digest gitignore frontmatter inspect gate   pure, no I/O
-  config fs-tree project staging vendor invariants               touch the disk
+  fs-tree project staging vendor invariants                      touch the disk
   clawhub.ts                                                     the only subprocess
   commands/  cli.ts                                              wiring
 test/
@@ -70,8 +70,15 @@ not find `@types/node` under pnpm's layout.
 
 **Never write outside the configured skills directory,** and never point `clawhub
 --workdir` at the project. See [docs/design.md](docs/design.md#installs-go-through-a-staging-directory-outside-the-project).
+This is why skillbarn does not create the `.claude/skills` symlink for you, tempting as it
+is; if that ever changes it is a `skb link <loader>` with its own invariants, not a rider on
+`add`. See [docs/design.md](docs/design.md#wiring-loaders-up-is-not-skillbarns-job-for-now).
 
 **`install` never writes the lock.** Only `add` and `remove` do.
+
+**A manifest is written with its defaults only when it is created.** `newManifest()` in
+`src/manifest.ts` is the one place that happens, and `init` and `add` share it. A *rewrite*
+adds nothing — see [docs/design.md](docs/design.md#creating-the-manifest-is-not-the-same-as-rewriting-it).
 
 **Every command but `init` refuses an unidentified project root.**
 `requireIdentifiedProject()` in `src/project.ts` guards the other five, read-only ones

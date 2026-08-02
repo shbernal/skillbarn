@@ -25,6 +25,22 @@ async function expectNoViolations(root: string): Promise<void> {
   expect(formatViolations(violations)).toBe('')
 }
 
+/** The confirmation gate and everything it prints go to stderr, so that is what is read. */
+async function captureStderr(run: () => Promise<unknown>): Promise<string> {
+  const written: string[] = []
+  const original = process.stderr.write.bind(process.stderr)
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    written.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'))
+    return true
+  }) as typeof process.stderr.write
+  try {
+    await run()
+  } finally {
+    process.stderr.write = original
+  }
+  return written.join('')
+}
+
 async function setup(options: Parameters<typeof makeFixtureProject>[0] = {}): Promise<void> {
   project = await makeFixtureProject({ localSkills: ['my-local'], ...options })
   restoreEnv = useEnv(project.env)
@@ -56,7 +72,12 @@ describe('add', () => {
       true,
     )
 
-    expect(JSON.parse(await project.read('skills.json'))).toEqual({
+    // The project was a bare git checkout, so this run created the manifest — and a
+    // manifest skillbarn creates states the settings it is about to run under.
+    expect(JSON.parse(await project.read('skillbarn.json'))).toEqual({
+      dir: '.agents/skills',
+      flatten: true,
+      gitignore: 'managed',
       skills: { '@fixture/greeter': { source: 'clawhub', version: '1.2.0' } },
     })
     const lock = JSON.parse(await project.read('skillbarn.lock'))
@@ -73,6 +94,31 @@ describe('add', () => {
       '# managed by skillbarn — do not edit\n/greeter/\n',
     )
     await expectNoViolations(project.root)
+  })
+
+  it('says it is creating the project, and only says it the once', async () => {
+    const first = await captureStderr(() =>
+      cmdAdd({
+        ref: '@fixture/greeter',
+        version: undefined,
+        yes: true,
+        force: false,
+        cwd: project.root,
+      }),
+    )
+    expect(first).toContain('no skillbarn project here yet')
+    expect(first).toContain('dir        .agents/skills')
+
+    const second = await captureStderr(() =>
+      cmdAdd({
+        ref: '@fixture/pdf-filler',
+        version: undefined,
+        yes: true,
+        force: false,
+        cwd: project.root,
+      }),
+    )
+    expect(second).not.toContain('no skillbarn project here yet')
   })
 
   it('leaves a hand-authored skill in the same directory untouched', async () => {
@@ -248,7 +294,7 @@ describe('remove and list', () => {
     expect(await cmdRemove({ ref: 'greeter', cwd: project.root })).toBe(0)
 
     expect(await pathExists(join(project.skillsDir, 'greeter'))).toBe(false)
-    expect(JSON.parse(await project.read('skills.json')).skills).toEqual({})
+    expect(JSON.parse(await project.read('skillbarn.json')).skills).toEqual({})
     expect(JSON.parse(await project.read('skillbarn.lock')).skills).toEqual({})
     expect(await project.read('.agents/skills/.gitignore')).toBe(
       '# managed by skillbarn — do not edit\n',
@@ -335,6 +381,32 @@ describe('configuration', () => {
     await expectNoViolations(project.root)
   })
 
+  it('rewrites the skills half without disturbing the rest of the manifest', async () => {
+    await setup({ config: { $schema: './skillbarn.schema.json', dir: 'vendor/skills' } })
+    await cmdAdd({
+      ref: '@fixture/greeter',
+      version: undefined,
+      yes: true,
+      force: false,
+      cwd: project.root,
+    })
+
+    // Config half intact, unknown key intact, and no default written in behind the
+    // project's back — `flatten` and `gitignore` were never set and must stay unset.
+    expect(JSON.parse(await project.read('skillbarn.json'))).toEqual({
+      $schema: './skillbarn.schema.json',
+      dir: 'vendor/skills',
+      skills: { '@fixture/greeter': { source: 'clawhub', version: '1.2.0' } },
+    })
+
+    await cmdRemove({ ref: 'greeter', cwd: project.root })
+    expect(JSON.parse(await project.read('skillbarn.json'))).toEqual({
+      $schema: './skillbarn.schema.json',
+      dir: 'vendor/skills',
+      skills: {},
+    })
+  })
+
   it('follows a symlinked skills directory to the tree it points at', async () => {
     await setup()
     const real = join(project.root, '.claude', 'skills')
@@ -364,6 +436,7 @@ describe('init', () => {
       dir: '.agents/skills',
       flatten: true,
       gitignore: 'managed',
+      skills: {},
     })
 
     expect(

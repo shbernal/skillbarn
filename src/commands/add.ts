@@ -1,12 +1,15 @@
 import { inspectSkill, requireClawhub } from '../clawhub.ts'
-import { loadProject } from '../config.ts'
 import { SkbError } from '../errors.ts'
 import { isDirectory } from '../fs-tree.ts'
-import { renderSummary, summarizeSkill } from '../gate.ts'
+import { renderProjectCreation, renderSummary, summarizeSkill } from '../gate.ts'
 import type { LockEntry } from '../lock.ts'
+import { MANIFEST_FILE } from '../manifest.ts'
 import {
+  hasManifest,
   installDirName,
+  loadProject,
   lockRelativePath,
+  manifestPath,
   readLockFile,
   readManifestFile,
   requireIdentifiedProject,
@@ -59,10 +62,22 @@ export async function cmdAdd(options: AddOptions): Promise<number> {
     )
   }
 
+  // A git root is an identified project, so this is not the refusal case — the project
+  // is real and only its manifest is missing. What it earns is disclosure, in the one
+  // confirmation this command already asks.
+  const creating = !hasManifest(project)
+
   const summary = summarizeSkill(inspected)
+  if (creating) {
+    err(renderProjectCreation(manifestPath(project), project.config))
+    err('')
+  }
   err(renderSummary(summary))
   err('')
-  if (!(await confirm(`install ${summary.ref}@${summary.version}?`, options.yes))) {
+  const question = creating
+    ? `create ${MANIFEST_FILE} and install ${summary.ref}@${summary.version}?`
+    : `install ${summary.ref}@${summary.version}?`
+  if (!(await confirm(question, options.yes))) {
     err('aborted')
     return 1
   }
