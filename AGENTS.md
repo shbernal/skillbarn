@@ -33,9 +33,14 @@ and 26, plus a job that packs the tarball and runs the bin out of it.
 
 Bump `version` in `package.json`, commit, then push a matching `v<version>` tag.
 `.github/workflows/release.yml` refuses a tag that disagrees with the manifest, then
-publishes with npm provenance using the `NPM_TOKEN` repository secret. Do not publish by
-hand: a local `npm publish` produces no attestation, and `dist/` is gitignored, so the
-tarball is only ever correct because `prepack` builds it.
+publishes with provenance. There is no publish token: npm is configured to trust that
+workflow in this repository and exchanges the job's OIDC identity for a short-lived
+credential, which is why the job needs `id-token: write`.
+
+Do not publish by hand. A local `npm publish` produces no attestation, and `dist/` is
+gitignored, so the tarball is only ever correct because `prepack` builds it. The one
+exception was 0.0.1: trusted publishing cannot be configured for a package that does not
+exist yet, so the first release had to come from a laptop.
 
 ## Layout
 
