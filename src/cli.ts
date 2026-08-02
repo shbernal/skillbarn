@@ -15,8 +15,8 @@ const USAGE = `skb — vendor agent skills into a project, reproducibly
 usage
   skb init [--dir <path>]
   skb add <@owner/slug> [--version <v>] [--yes] [--force]
-  skb install [--force]
-  skb remove <slug>
+  skb install [--force]                          (alias: i)
+  skb remove <slug>                              (alias: rm)
   skb list
   skb verify
 
@@ -121,6 +121,9 @@ async function main(argv: readonly string[]): Promise<number> {
         cwd,
       })
     }
+    // `i` and `rm` are the two commands typed often enough to be worth an alias, and both
+    // spellings are the ones the neighbouring package managers already train.
+    case 'i':
     case 'install': {
       const { values, positionals } = parseArgs(rest, new Set())
       rejectUnknown(values, ['--force'])
@@ -129,6 +132,7 @@ async function main(argv: readonly string[]): Promise<number> {
       }
       return cmdInstall({ force: values.has('--force'), cwd })
     }
+    case 'rm':
     case 'remove': {
       const { values, positionals } = parseArgs(rest, new Set())
       rejectUnknown(values, [])

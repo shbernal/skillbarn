@@ -73,8 +73,8 @@ already asks, so nothing appears at your repo root unannounced.
 |---|---|
 | `skb init` | Write `skillbarn.json` here. `--dir <path>`. Never overwrites an existing one. |
 | `skb add <@owner/slug>` | Show the skill, ask, install it, record it. `--version`, `--yes`, `--force`. |
-| `skb install` | Restore exactly what the lock records. `--force` overwrites local edits. |
-| `skb remove <slug>` | Delete the directory and both records. Never touches the registry. |
+| `skb install` | Restore exactly what the lock records. `--force` overwrites local edits. Alias `i`. |
+| `skb remove <slug>` | Delete the directory and both records. Never touches the registry. Alias `rm`. |
 | `skb list` | Vendored skills with their state, plus any local ones. |
 | `skb verify` | No network, CI-friendly. Fails if the project has drifted from the lock. |
 
