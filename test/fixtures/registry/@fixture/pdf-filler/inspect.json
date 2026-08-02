@@ -1,0 +1,24 @@
+{
+  "skill": {
+    "slug": "pdf-filler",
+    "displayName": "PDF Filler",
+    "summary": "Fill PDF form fields from a JSON file.",
+    "description": "---\nname: pdf-filler\nversion: 0.4.1\ndescription: Fill PDF form fields from a JSON file.\n---\n\n# pdf-filler\n\n```sh\npdftk form.pdf fill_form data.fdf output out.pdf\n```\n",
+    "tags": { "latest": "0.4.1" }
+  },
+  "latestVersion": { "version": "0.4.1", "license": "MIT" },
+  "owner": {
+    "handle": "fixture",
+    "userId": "fixture-user",
+    "displayName": "Fixture Owner"
+  },
+  "version": {
+    "version": "0.4.1",
+    "license": "MIT",
+    "changelog": "initial",
+    "files": [],
+    "security": { "status": "clean", "hasWarnings": false, "scanners": {} }
+  },
+  "versions": null,
+  "file": null
+}

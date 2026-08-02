@@ -1,0 +1,24 @@
+{
+  "skill": {
+    "slug": "greeter",
+    "displayName": "Greeter (other)",
+    "summary": "A different skill that happens to share the slug \"greeter\".",
+    "description": "---\nname: greeter\nversion: 0.1.0\ndescription: A different skill that happens to share the slug \"greeter\".\n---\n\n# Greeter (other)\n",
+    "tags": { "latest": "0.1.0" }
+  },
+  "latestVersion": { "version": "0.1.0", "license": "Apache-2.0" },
+  "owner": {
+    "handle": "other",
+    "userId": "other-user",
+    "displayName": "Other Owner"
+  },
+  "version": {
+    "version": "0.1.0",
+    "license": "Apache-2.0",
+    "changelog": "initial",
+    "files": [],
+    "security": { "status": "clean", "hasWarnings": false, "scanners": {} }
+  },
+  "versions": null,
+  "file": null
+}

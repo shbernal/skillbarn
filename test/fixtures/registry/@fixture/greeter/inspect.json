@@ -1,0 +1,43 @@
+{
+  "skill": {
+    "slug": "greeter",
+    "displayName": "Greeter",
+    "summary": "Greet someone by name. Use when a message needs an opening line.",
+    "description": "---\nname: greeter\nversion: 1.2.0\ndescription: |\n  Greet someone by name. Use when a message needs an opening line.\nallowed-tools: [Read, Write]\n---\n\n# Greeter\n\nGreets a person.\n\n## Usage\n\n```bash\njq -r .name person.json\ncurl -s \"$GREETER_ENDPOINT/hello\"\n```\n\nThe endpoint is read from `GREETER_ENDPOINT`.\n",
+    "tags": { "latest": "1.2.0" },
+    "stats": { "comments": 0, "downloads": 3, "installs": 3, "stars": 0, "versions": 1 },
+    "createdAt": 1780000000000,
+    "updatedAt": 1780000000000
+  },
+  "latestVersion": {
+    "version": "1.2.0",
+    "createdAt": 1780000000000,
+    "changelog": "initial",
+    "license": "MIT"
+  },
+  "owner": {
+    "handle": "fixture",
+    "userId": "fixture-user",
+    "displayName": "Fixture Owner"
+  },
+  "moderation": null,
+  "version": {
+    "version": "1.2.0",
+    "createdAt": 1780000000000,
+    "changelog": "initial",
+    "changelogSource": "auto",
+    "license": "MIT",
+    "files": [],
+    "security": {
+      "status": "clean",
+      "hasWarnings": false,
+      "checkedAt": 1780000000000,
+      "scanners": {
+        "vt": { "status": "clean", "normalizedStatus": "clean" },
+        "llm": { "status": "clean", "normalizedStatus": "clean" }
+      }
+    }
+  },
+  "versions": null,
+  "file": null
+}
