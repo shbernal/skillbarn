@@ -32,10 +32,14 @@ and 26, plus a job that packs the tarball and runs the bin out of it.
 ## Releasing
 
 Bump `version` in `package.json`, commit, then push a matching `v<version>` tag.
-`.github/workflows/release.yml` refuses a tag that disagrees with the manifest, then
+`.github/workflows/publish.yml` refuses a tag that disagrees with the manifest, then
 publishes with provenance. There is no publish token: npm is configured to trust that
 workflow in this repository and exchanges the job's OIDC identity for a short-lived
 credential, which is why the job needs `id-token: write`.
+
+That trust is bound to the workflow's **filename**, plus the owner and repository name.
+Renaming any of the three breaks publishing, and it fails as a permission error that does
+not mention the rename — update the trusted publisher on npmjs.com in the same change.
 
 Do not publish by hand. A local `npm publish` produces no attestation, and `dist/` is
 gitignored, so the tarball is only ever correct because `prepack` builds it. The one

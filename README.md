@@ -4,25 +4,31 @@ Vendor agent skills into a project the way `node_modules` vendors packages: inst
 from a committed lockfile, gitignored, reproducible in a fresh clone.
 
 ```console
-$ skb add @seanford/humanizer
-  @seanford/humanizer@1.0.0  Humanizer
+$ skb add @shbernal/rfc-lookup
+  @shbernal/rfc-lookup@0.1.0  RFC lookup
   license   MIT-0
-  files     4 (22.4 KB)
-  scans     clean (vt=clean skillspector=suspicious llm=clean)
+  files     3 (40.7 KB)
+  scans     clean (vt=clean skillspector=clean llm=clean)
 
-  Remove signs of AI-generated writing from text. Use when editing or reviewing
-  text to make it sound more natural and human-written.
+  Look up IETF RFCs and read what a specification actually says. Use
+  whenever an RFC number comes up ("RFC 9110", "RFC 2616", "rfc7231"), when
+  checking what a protocol spec requires, when quoting normative
+  MUST/SHOULD/MAY language, when asked "what does the spec say about X", or
+  when verifying whether an RFC is still current or has been obsoleted.
+  Covers HTTP, TCP/IP, DNS, TLS, QUIC, SMTP, OAuth, JSON/JOSE and every
+  other IETF standard. Finds the right RFC, reads one section instead of the
+  whole document, and flags superseded specifications before they get cited.
 
   mentioned in the skill text (heuristic, not a sandbox report):
-    tools     Read, Write, Edit, Grep, Glob, AskUserQuestion
-    commands  —
-    env vars  —
+    tools     —
+    commands  python3, rg
+    env vars  RFC_MIRROR
 
-install @seanford/humanizer@1.0.0? [y/N] y
-added @seanford/humanizer@1.0.0 -> .agents/skills/humanizer
+install @shbernal/rfc-lookup@0.1.0? [y/N] y
+added @shbernal/rfc-lookup@0.1.0 -> .agents/skills/rfc-lookup
 ```
 
-Commit `skillbarn.json` and `skillbarn.lock`; `.agents/skills/humanizer/` is ignored. In a
+Commit `skillbarn.json` and `skillbarn.lock`; `.agents/skills/rfc-lookup/` is ignored. In a
 fresh clone, `skb install` puts back exactly those bytes or fails.
 
 ## Install
@@ -90,7 +96,7 @@ full, and every field is optional — delete the ones you have no opinion about.
   "flatten": true,
   "gitignore": "managed",
   "skills": {
-    "@seanford/humanizer": { "source": "clawhub", "version": "1.0.0" }
+    "@shbernal/rfc-lookup": { "source": "clawhub", "version": "0.1.0" }
   }
 }
 ```
