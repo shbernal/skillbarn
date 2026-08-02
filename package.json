@@ -2,6 +2,18 @@
   "name": "skillbarn",
   "version": "0.0.0",
   "description": "Vendor agent skills into a project, reproducibly, from a committed lockfile",
+  "author": "shbernal",
+  "keywords": [
+    "agent-skills",
+    "skills",
+    "clawhub",
+    "claude-code",
+    "openclaw",
+    "opencode",
+    "lockfile",
+    "vendoring",
+    "cli"
+  ],
   "type": "module",
   "bin": {
     "skb": "dist/cli.js"
