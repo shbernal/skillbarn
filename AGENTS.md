@@ -12,6 +12,7 @@ pnpm typecheck     # tsc --noEmit — biome does not typecheck
 pnpm check         # biome (lint + format)
 pnpm check:fix     # biome --write
 pnpm build         # tsc -> dist/
+pnpm publint       # lint the packed tarball; needs dist/ built first
 ```
 
 `node src/cli.ts <args>` is the dev loop. **There is no watch build** and none is needed:
@@ -25,7 +26,16 @@ survives being symlinked onto `PATH`. Do not reach for `pnpm exec` here: it move
 process to the package root, which is exactly the input under test.
 
 Lefthook runs Biome on staged files pre-commit, and `tsc --noEmit` + `vitest run` pre-push.
-Both are cheap; do not skip them.
+Both are cheap; do not skip them. The same gates run in GitHub Actions across Node 22, 24
+and 26, plus a job that packs the tarball and runs the bin out of it.
+
+## Releasing
+
+Bump `version` in `package.json`, commit, then push a matching `v<version>` tag.
+`.github/workflows/release.yml` refuses a tag that disagrees with the manifest, then
+publishes with npm provenance using the `NPM_TOKEN` repository secret. Do not publish by
+hand: a local `npm publish` produces no attestation, and `dist/` is gitignored, so the
+tarball is only ever correct because `prepack` builds it.
 
 ## Layout
 
