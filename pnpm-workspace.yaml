@@ -1,0 +1,4 @@
+# pnpm 11 reads settings from here, not from package.json's "pnpm" field.
+# lefthook's postinstall is what puts the git hooks in place.
+allowBuilds:
+  lefthook: true

@@ -1,0 +1,16 @@
+# Pre-commit stays cheap: formatting and lint on staged files only.
+# Typecheck and tests are pre-push — they are too slow to sit in front of every commit.
+pre-commit:
+  parallel: true
+  jobs:
+    - name: biome
+      glob: '*.{js,mjs,ts,json,jsonc}'
+      run: pnpm exec biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
+
+pre-push:
+  jobs:
+    - name: typecheck
+      run: pnpm exec tsc --noEmit
+    - name: test
+      run: pnpm exec vitest run
