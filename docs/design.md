@@ -13,6 +13,48 @@ lockfile.
 The whole subprocess boundary is one small module, `src/clawhub.ts`. That is not tidiness
 for its own sake — it is what makes the test seam possible (see [testing](testing.md)).
 
+## One global binary, and the project is inferred
+
+skillbarn ships as a globally installed CLI (`pnpm add -g skillbarn`) rather than as a
+project devDependency, and finds the project by walking up from the working directory.
+
+The alternative — a devDependency plus a package script — would require a `package.json`
+in every repo that wants vendored skills, and agent skills are not a JavaScript concern.
+A Rust or Python repo should not have to adopt an unrelated ecosystem to get one. The
+Node dependency is not really a choice either way: `clawhub` is an npm CLI, so the
+runtime is already fixed.
+
+The usual objection to a global tool is version skew — the machine, not the repo, decides
+which skillbarn you get. It does not bite here because the lock records *content
+digests*, not resolution decisions. A newer `skb install` reading an older lock either
+reproduces the same bytes or refuses; there is no resolver whose output could drift with
+the tool's version. That is a different situation from a package manager, and it is worth
+saying out loud because people will assume otherwise.
+
+`clawhub` stays a `PATH` dependency rather than an npm `dependency`. Declaring it would
+pull its tree into a package that otherwise has none, and would couple skillbarn's
+release cadence to a CLI whose auth and versioning are deliberately not its problem.
+
+## Inferring the project means refusing when there is none
+
+A global binary that guesses the project from the cwd has one failure mode a local one
+does not: `skb add @owner/slug` typed in a home directory. Nothing about that directory
+says "project", so the pre-refusal behaviour would have been to create `skills.json`,
+`skillbarn.lock` and a skills tree in `~`.
+
+So the root has to be *identified*, not merely defaulted. `skillbarn.json` identifies it,
+a `.git` directory identifies it, and an existing `skills.json` or `skillbarn.lock`
+identifies it — that last one so a project unpacked from a tarball, which has no `.git`,
+still installs. Anything else is refused with a pointer to `skb init`, which exists
+precisely so there is something to point at.
+
+All six commands refuse, including the read-only ones. `skb verify` run from the wrong
+directory would otherwise report `ok` for a project it never found, and a false green in
+CI is worse than the noise of one extra check.
+
+This is the same posture as the rest of the tool: guessing is repair, and repair is what
+[failure is refusal](#failure-is-refusal-not-repair) declines to do.
+
 ## Skills are flattened
 
 ClawHub installs to `<dir>/@owner/slug/`. The Agent Skills spec requires `SKILL.md` at the

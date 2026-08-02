@@ -27,6 +27,11 @@ export type FixtureOptions = {
   config?: Record<string, unknown>
   /** Hand-authored skills that must survive every command. */
   localSkills?: string[]
+  /**
+   * Create a `.git` directory, as a real project has. Set `false` to build the one
+   * thing skillbarn refuses to act on: a directory nothing identifies as a project.
+   */
+  git?: boolean
 }
 
 /**
@@ -39,6 +44,8 @@ export async function makeFixtureProject(options: FixtureOptions = {}): Promise<
   const logFile = join(root, '.clawhub-calls.log')
   const dir = typeof options.config?.dir === 'string' ? options.config.dir : '.agents/skills'
   const skillsDir = join(root, ...dir.split('/'))
+
+  if (options.git !== false) await mkdir(join(root, '.git'), { recursive: true })
 
   await mkdir(binDir, { recursive: true })
   await writeFile(join(binDir, 'clawhub'), `#!/bin/sh\nexec node ${FAKE_CLAWHUB} "$@"\n`, 'utf8')

@@ -9,6 +9,7 @@ import {
   lockRelativePath,
   readLockFile,
   readManifestFile,
+  requireIdentifiedProject,
   skillPath,
   syncGitignore,
   writeLockFile,
@@ -29,6 +30,7 @@ export type AddOptions = {
 export async function cmdAdd(options: AddOptions): Promise<number> {
   const requested = parseSkillRef(options.ref)
   const project = await loadProject(options.cwd)
+  await requireIdentifiedProject(project)
   await requireClawhub()
 
   // One call: the confirmation gate, the resolved owner and version, and the per-file

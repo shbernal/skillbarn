@@ -3,7 +3,13 @@ import { loadProject } from '../config.ts'
 import { SkbError } from '../errors.ts'
 import { digestTree, isDirectory } from '../fs-tree.ts'
 import { reconcile } from '../lock.ts'
-import { entryPath, readLockFile, readManifestFile, syncGitignore } from '../project.ts'
+import {
+  entryPath,
+  readLockFile,
+  readManifestFile,
+  requireIdentifiedProject,
+  syncGitignore,
+} from '../project.ts'
 import { formatSkillRef } from '../slug.ts'
 import { err, out } from '../ui.ts'
 import { sweepScopedDirs, vendorSkill } from '../vendor.ts'
@@ -22,6 +28,7 @@ export type InstallOptions = {
  */
 export async function cmdInstall(options: InstallOptions): Promise<number> {
   const project = await loadProject(options.cwd)
+  await requireIdentifiedProject(project)
   const lock = await readLockFile(project)
   const manifest = await readManifestFile(project)
   const plan = reconcile(manifest, lock)

@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, posix, resolve } from 'node:path'
-import type { Project } from './config.ts'
+import { CONFIG_FILE, type Project } from './config.ts'
+import { SkbError } from './errors.ts'
 import { pathExists, removePath } from './fs-tree.ts'
 import { GITIGNORE_HEADER, renderGitignore } from './gitignore.ts'
 import {
@@ -33,6 +34,26 @@ export function lockPath(project: Project): string {
 
 export function gitignorePath(project: Project): string {
   return join(project.skillsDir, GITIGNORE_FILE)
+}
+
+/**
+ * Refuse to act when nothing identified a project root.
+ *
+ * `skb` is installed globally and infers the project from the working directory, so
+ * without this `skb add` typed in a home directory would create `skills.json`,
+ * `skillbarn.lock` and a skills tree there. Guessing is the repair this tool does not do.
+ *
+ * An existing manifest or lock is evidence enough on its own: a project unpacked from a
+ * tarball has no `.git`, and refusing to `skb install` there would be the wrong answer.
+ */
+export async function requireIdentifiedProject(project: Project): Promise<void> {
+  if (project.origin !== 'cwd') return
+  if (await pathExists(manifestPath(project))) return
+  if (await pathExists(lockPath(project))) return
+  throw new SkbError(
+    `no project here: ${project.root} is not a git repository and has no ${CONFIG_FILE}`,
+    'run `skb init` to make this directory a skillbarn project',
+  )
 }
 
 /**

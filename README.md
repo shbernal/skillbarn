@@ -25,15 +25,49 @@ added @seanford/humanizer@1.0.0 -> .agents/skills/humanizer
 Commit `skills.json` and `skillbarn.lock`; `.agents/skills/humanizer/` is ignored. In a
 fresh clone, `skb install` puts back exactly those bytes or fails.
 
-## Requirements
+## Install
 
-Node 22 or newer, and the [`clawhub`](https://www.npmjs.com/package/clawhub) CLI on
-`PATH`. skillbarn drives that CLI rather than reimplementing auth, search or publishing.
+`skb` is a global CLI. It works out which project you are in from the working directory,
+so one install covers every repo — including repos that have no `package.json` of their
+own.
+
+```sh
+pnpm add -g skillbarn clawhub
+```
+
+npm is equally supported: `npm i -g skillbarn clawhub`. To run it without installing
+anything, `pnpm dlx skillbarn verify` or `npx skillbarn verify` — worth knowing for CI,
+where `verify` needs neither the network nor `clawhub`:
+
+```yaml
+- run: pnpm dlx skillbarn verify
+```
+
+Node 22 or newer. [`clawhub`](https://www.npmjs.com/package/clawhub) has to be on `PATH`
+for `add` and `install`, and skillbarn deliberately does not bundle it: it drives that
+CLI rather than reimplementing auth, search or publishing, and you upgrade it on its own
+schedule. A missing `clawhub` is a runtime error naming the install command.
+
+## Which project
+
+The project root is the nearest directory with a `skillbarn.json`, and failing that the
+git root. If neither exists, skillbarn refuses rather than treating the working directory
+as a project — a global `skb add` mistyped in a home directory should not quietly create
+one there. A directory that already holds a `skills.json` or `skillbarn.lock` counts as a
+project on its own, so an unpacked tarball with no `.git` still installs.
+
+`skb init` writes the config that settles it, and is also how you point skillbarn at the
+directory your agent actually reads:
+
+```sh
+skb init --dir .claude/skills
+```
 
 ## Commands
 
 | Command | What it does |
 |---|---|
+| `skb init` | Write `skillbarn.json` here. `--dir <path>`. Never overwrites an existing config. |
 | `skb add <@owner/slug>` | Show the skill, ask, install it, record it. `--version`, `--yes`, `--force`. |
 | `skb install` | Restore exactly what the lock records. `--force` overwrites local edits. |
 | `skb remove <slug>` | Delete the directory and both records. Never touches the registry. |
@@ -42,7 +76,7 @@ Node 22 or newer, and the [`clawhub`](https://www.npmjs.com/package/clawhub) CLI
 
 ## Configuration
 
-`skillbarn.json` at the project root, all fields optional:
+`skillbarn.json` at the project root, written by `skb init` and all fields optional:
 
 ```json
 {
@@ -57,8 +91,9 @@ Node 22 or newer, and the [`clawhub`](https://www.npmjs.com/package/clawhub) CLI
 
 **Which `dir` your agent actually reads.** `.agents/skills` is a project skill root for
 OpenClaw, but Claude Code (measured against 2.1.220) does not scan it — it reads
-`.claude/skills` only. If Claude Code is your agent, either set `"dir": ".claude/skills"`
-or symlink `.claude/skills` at `.agents/skills`; skillbarn resolves the symlink and
+`.claude/skills` only. If Claude Code is your agent, either run
+`skb init --dir .claude/skills` or symlink `.claude/skills` at `.agents/skills`;
+skillbarn resolves the symlink and
 writes into the real tree. Full table in [docs/loaders.md](docs/loaders.md).
 
 ## How it works

@@ -76,6 +76,11 @@ encoding a second, subtly different idea of correctness.
 
 ## Fixtures
 
+`makeFixtureProject()` creates a `.git` directory in the temp root, because skillbarn
+refuses to act on a directory nothing identifies as a project. Pass `git: false` to build
+that refusal case deliberately; leaving it out by accident would make every command in
+the suite fail for the same uninteresting reason.
+
 `test/fixtures/registry/` is synthetic, small, and committed: `@fixture/greeter`,
 `@fixture/pdf-filler`, and `@other/greeter` to exercise collisions and ambiguity.
 

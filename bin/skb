@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Run `skb` from this checkout, without a build. Node executes the TypeScript
+# source directly; `dist/` is only for the published package.
+#
+# The cwd is passed through untouched, because that is how skillbarn finds the
+# project. Anything that runs this from a different directory is wrong.
+set -euo pipefail
+
+repo="$(cd -- "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/.." && pwd)"
+
+exec node "$repo/src/cli.ts" "$@"

@@ -5,6 +5,7 @@ import {
   entryPath,
   readLockFile,
   readManifestFile,
+  requireIdentifiedProject,
   syncGitignore,
   writeLockFile,
   writeManifestFile,
@@ -25,6 +26,7 @@ export type RemoveOptions = {
  */
 export async function cmdRemove(options: RemoveOptions): Promise<number> {
   const project = await loadProject(options.cwd)
+  await requireIdentifiedProject(project)
   const parsed = parseSkillRef(options.ref)
 
   const lock = await readLockFile(project)

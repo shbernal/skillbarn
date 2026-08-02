@@ -2,7 +2,13 @@ import { join } from 'node:path'
 import { loadProject } from '../config.ts'
 import { digestTree, isDirectory, pathExists, readDirNames } from '../fs-tree.ts'
 import { lockedSlugs } from '../lock.ts'
-import { entryDirName, entryPath, ignoredDirNames, readLockFile } from '../project.ts'
+import {
+  entryDirName,
+  entryPath,
+  ignoredDirNames,
+  readLockFile,
+  requireIdentifiedProject,
+} from '../project.ts'
 import { out } from '../ui.ts'
 
 export type ListOptions = {
@@ -18,6 +24,7 @@ type Row = {
 
 export async function cmdList(options: ListOptions): Promise<number> {
   const project = await loadProject(options.cwd)
+  await requireIdentifiedProject(project)
   const lock = await readLockFile(project)
   const rows: Row[] = []
 

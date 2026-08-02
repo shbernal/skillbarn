@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cmdAdd } from '../../src/commands/add.ts'
+import { cmdInit } from '../../src/commands/init.ts'
 import { cmdInstall } from '../../src/commands/install.ts'
 import { cmdList } from '../../src/commands/list.ts'
 import { cmdRemove } from '../../src/commands/remove.ts'
@@ -351,6 +352,61 @@ describe('configuration', () => {
     expect(await pathExists(join(real, 'greeter', 'SKILL.md'))).toBe(true)
     expect(await pathExists(join(real, '.gitignore'))).toBe(true)
     await expectNoViolations(project.root)
+  })
+})
+
+describe('init', () => {
+  it('makes a directory a project that nothing else identified', async () => {
+    await setup({ git: false })
+
+    expect(await cmdInit({ dir: undefined, cwd: project.root })).toBe(0)
+    expect(JSON.parse(await project.read('skillbarn.json'))).toEqual({
+      dir: '.agents/skills',
+      flatten: true,
+      gitignore: 'managed',
+    })
+
+    expect(
+      await cmdAdd({
+        ref: '@fixture/greeter',
+        version: undefined,
+        yes: true,
+        force: false,
+        cwd: project.root,
+      }),
+    ).toBe(0)
+    await expectNoViolations(project.root)
+  })
+
+  it('honours --dir, and vendors there', async () => {
+    await setup({ git: false })
+    await cmdInit({ dir: '.claude/skills', cwd: project.root })
+
+    expect(JSON.parse(await project.read('skillbarn.json')).dir).toBe('.claude/skills')
+    await cmdAdd({
+      ref: '@fixture/greeter',
+      version: undefined,
+      yes: true,
+      force: false,
+      cwd: project.root,
+    })
+    expect(await pathExists(join(project.root, '.claude', 'skills', 'greeter', 'SKILL.md'))).toBe(
+      true,
+    )
+  })
+
+  it('rejects a --dir that escapes the project, before writing anything', async () => {
+    await setup({ git: false })
+    await expect(cmdInit({ dir: '../elsewhere', cwd: project.root })).rejects.toThrow(
+      /must be a relative path inside the project/,
+    )
+    expect(await pathExists(join(project.root, 'skillbarn.json'))).toBe(false)
+  })
+
+  it('never overwrites an existing config', async () => {
+    await setup({ config: { dir: 'skills' } })
+    await expect(cmdInit({ dir: undefined, cwd: project.root })).rejects.toThrow(/already exists/)
+    expect(JSON.parse(await project.read('skillbarn.json'))).toEqual({ dir: 'skills' })
   })
 })
 

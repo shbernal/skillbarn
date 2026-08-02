@@ -1,8 +1,9 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { cmdAdd } from '../../src/commands/add.ts'
 import { cmdInstall } from '../../src/commands/install.ts'
+import { cmdList } from '../../src/commands/list.ts'
 import { cmdVerify } from '../../src/commands/verify.ts'
 import { pathExists } from '../../src/fs-tree.ts'
 import { checkInvariants } from '../../src/invariants.ts'
@@ -100,6 +101,37 @@ it('reports a vendored-looking directory that the lock does not know about', asy
   expect(violations).toContainEqual({
     invariant: 'lock-matches-disk',
     detail: 'stowaway looks vendored (has .clawhub/) but is not in the lock',
+  })
+})
+
+describe('a directory that nothing identifies as a project', () => {
+  it('is refused rather than turned into one, and nothing is written', async () => {
+    await setup({ git: false })
+
+    await expect(add('@fixture/greeter')).rejects.toMatchObject({
+      message: expect.stringContaining('no project here'),
+      hint: expect.stringContaining('skb init'),
+    })
+
+    expect(await pathExists(join(project.root, 'skills.json'))).toBe(false)
+    expect(await pathExists(join(project.root, 'skillbarn.lock'))).toBe(false)
+    expect(await pathExists(join(project.skillsDir, 'greeter'))).toBe(false)
+  })
+
+  it('refuses the read-only commands too, so a wrong cwd in CI is loud', async () => {
+    await setup({ git: false })
+    await expect(cmdVerify({ cwd: project.root })).rejects.toThrow(/no project here/)
+    await expect(cmdList({ cwd: project.root })).rejects.toThrow(/no project here/)
+    await expect(cmdInstall({ force: false, cwd: project.root })).rejects.toThrow(/no project here/)
+  })
+
+  it('does not include one already carrying a lock — an unpacked tarball has no .git', async () => {
+    await setup()
+    await add('@fixture/greeter')
+    await rm(join(project.root, '.git'), { recursive: true })
+
+    expect(await cmdInstall({ force: false, cwd: project.root })).toBe(0)
+    expect(await cmdVerify({ cwd: project.root })).toBe(0)
   })
 })
 

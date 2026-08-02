@@ -18,6 +18,12 @@ pnpm build         # tsc -> dist/
 Node runs the TypeScript source directly, and `tsc` is a typecheck gate plus a publish-time
 build, nothing more.
 
+`bin/skb` is the same thing as an executable, for driving this checkout from another
+directory — which is the only way to exercise a tool that infers the project from the cwd.
+It resolves the checkout from its own path and passes the cwd through untouched, so it
+survives being symlinked onto `PATH`. Do not reach for `pnpm exec` here: it moves the
+process to the package root, which is exactly the input under test.
+
 Lefthook runs Biome on staged files pre-commit, and `tsc --noEmit` + `vitest run` pre-push.
 Both are cheap; do not skip them.
 
@@ -36,6 +42,7 @@ test/
   helpers/      fake-clawhub.mjs, fixture-project.ts
   fixtures/     synthetic registry
 scripts/record-fixtures.ts   refresh a fixture from the live registry (network, manual)
+bin/skb                      run this checkout from anywhere (dev only, not published)
 ```
 
 The pure/effectful split is not aesthetic. Layer-1 tests can only stay fast and total
@@ -65,6 +72,12 @@ not find `@types/node` under pnpm's layout.
 --workdir` at the project. See [docs/design.md](docs/design.md#installs-go-through-a-staging-directory-outside-the-project).
 
 **`install` never writes the lock.** Only `add` and `remove` do.
+
+**Every command but `init` refuses an unidentified project root.**
+`requireIdentifiedProject()` in `src/project.ts` guards the other five, read-only ones
+included. `skb` is on the global `PATH`, so a command that defaulted to the working
+directory would turn a home directory into a project. See
+[docs/design.md](docs/design.md#inferring-the-project-means-refusing-when-there-is-none).
 
 ## Changing behaviour
 

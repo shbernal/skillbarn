@@ -59,9 +59,14 @@ export function parseConfig(text: string, file = CONFIG_FILE): SkillbarnConfig {
   return config
 }
 
+/** What decided the project root. `cwd` is the fallback: nothing identified a project. */
+export type ProjectOrigin = 'config' | 'git' | 'cwd'
+
 export type Project = {
   /** Absolute, realpath-resolved project root. */
   root: string
+  /** How `root` was found. `requireIdentifiedProject` refuses to act on `'cwd'`. */
+  origin: ProjectOrigin
   config: SkillbarnConfig
   /**
    * Absolute skills directory, with every existing path component resolved. If
@@ -71,30 +76,49 @@ export type Project = {
   skillsDir: string
 }
 
-/** `skillbarn.json` wins, then the git root, then the cwd. */
-export async function findProjectRoot(cwd: string): Promise<string> {
+/**
+ * `skillbarn.json` wins, then the git root, then the cwd.
+ *
+ * The walk continues past a `.git` it has found, so a config file higher up still wins —
+ * a repository nested inside a configured project is not a second project.
+ */
+export async function findProjectRoot(cwd: string): Promise<{
+  root: string
+  origin: ProjectOrigin
+}> {
   const start = resolve(cwd)
   let gitRoot: string | null = null
 
   let current = start
   for (;;) {
-    if (await isFile(resolve(current, CONFIG_FILE))) return current
+    if (await isFile(resolve(current, CONFIG_FILE))) return { root: current, origin: 'config' }
     if (gitRoot === null && (await exists(resolve(current, '.git')))) gitRoot = current
     const parent = dirname(current)
     if (parent === current) break
     current = parent
   }
-  return gitRoot ?? start
+  return gitRoot === null ? { root: start, origin: 'cwd' } : { root: gitRoot, origin: 'git' }
 }
 
 export async function loadProject(cwd: string): Promise<Project> {
-  const root = await realpathOrSelf(await findProjectRoot(cwd))
+  const found = await findProjectRoot(cwd)
+  const root = await realpathOrSelf(found.root)
   const configPath = resolve(root, CONFIG_FILE)
   const config = (await isFile(configPath))
     ? parseConfig(await readFile(configPath, 'utf8'), CONFIG_FILE)
     : { ...DEFAULT_CONFIG }
 
-  return { root, config, skillsDir: await resolveRealPath(resolve(root, config.dir)) }
+  return {
+    root,
+    origin: found.origin,
+    config,
+    skillsDir: await resolveRealPath(resolve(root, config.dir)),
+  }
+}
+
+/** Serialize a config the way `skb init` writes it. */
+export function renderConfig(config: SkillbarnConfig): string {
+  return `${JSON.stringify(config, null, 2)}\n`
 }
 
 /**

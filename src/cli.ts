@@ -2,6 +2,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { cmdAdd } from './commands/add.ts'
+import { cmdInit } from './commands/init.ts'
 import { cmdInstall } from './commands/install.ts'
 import { cmdList } from './commands/list.ts'
 import { cmdRemove } from './commands/remove.ts'
@@ -12,6 +13,7 @@ import { err, out } from './ui.ts'
 const USAGE = `skb — vendor agent skills into a project, reproducibly
 
 usage
+  skb init [--dir <path>]
   skb add <@owner/slug> [--version <v>] [--yes] [--force]
   skb install [--force]
   skb remove <slug>
@@ -19,12 +21,14 @@ usage
   skb verify
 
 options
+  --dir <path>    skills directory to configure (init only)
   --version <v>   version to add (add only); as a bare flag, prints skillbarn's version
   --yes, -y       skip the confirmation prompt
   --force         overwrite an existing local copy
   --help, -h      this text
 
-Skills land in .agents/skills/<slug>/, gitignored from a committed skillbarn.lock.
+The project is the nearest skillbarn.json, else the git root. Skills land in
+.agents/skills/<slug>/, gitignored from a committed skillbarn.lock.
 Configure with skillbarn.json: dir, flatten, gitignore.`
 
 type Flags = {
@@ -95,6 +99,13 @@ async function main(argv: readonly string[]): Promise<number> {
   const cwd = process.cwd()
 
   switch (command) {
+    case 'init': {
+      const { values, positionals } = parseArgs(rest, new Set(['--dir']))
+      rejectUnknown(values, ['--dir'])
+      if (positionals.length > 0) throw new UsageError('init takes no arguments, only --dir')
+      const dir = values.get('--dir')
+      return cmdInit({ dir: typeof dir === 'string' ? dir : undefined, cwd })
+    }
     case 'add': {
       const { values, positionals } = parseArgs(rest, new Set(['--version']))
       rejectUnknown(values, ['--version', '--yes', '-y', '--force'])

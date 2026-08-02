@@ -1,4 +1,6 @@
+import { loadProject } from '../config.ts'
 import { checkInvariants, formatViolations } from '../invariants.ts'
+import { requireIdentifiedProject } from '../project.ts'
 import { err, out } from '../ui.ts'
 
 export type VerifyOptions = {
@@ -11,6 +13,11 @@ export type VerifyOptions = {
  * six things that have to hold, and the others fail just as loudly.
  */
 export async function cmdVerify(options: VerifyOptions): Promise<number> {
+  // Deliberately not inside `checkInvariants`: that function answers whether a project
+  // is legal, and "there is no project here" is a question about the caller. In CI it
+  // is the difference between a false green and a loud failure on a wrong directory.
+  await requireIdentifiedProject(await loadProject(options.cwd))
+
   const violations = await checkInvariants(options.cwd)
   if (violations.length === 0) {
     out('ok')
