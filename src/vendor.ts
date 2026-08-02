@@ -1,6 +1,12 @@
 import { join } from 'node:path'
 import { installIntoStaging, STAGING_SKILLS_DIR } from './clawhub.ts'
-import { compareFileHashes, excludeFromDigest, type FileHash, treeDigest } from './digest.ts'
+import {
+  CLAWHUB_BOOKKEEPING,
+  compareFileHashes,
+  excludeFromDigest,
+  type FileHash,
+  treeDigest,
+} from './digest.ts'
 import { SkbError } from './errors.ts'
 import {
   hashTree,
@@ -59,6 +65,8 @@ export async function vendorSkill(project: Project, request: VendorRequest): Pro
       )
     }
 
+    await stripClawhubBookkeeping(installed)
+
     const files = await hashTree(installed)
     if (request.expectedFiles !== undefined) {
       const mismatches = compareFileHashes(request.expectedFiles, files)
@@ -89,6 +97,28 @@ export async function vendorSkill(project: Project, request: VendorRequest): Pro
   })
 
   return { dirName, integrity }
+}
+
+/**
+ * Delete the registry client's own bookkeeping, in staging, before anything is hashed
+ * or moved.
+ *
+ * `_meta.json` and `.clawhub/origin.json` are written by `clawhub install`, not by the
+ * skill's author — the first with an `ownerId` and `publishedAt` that disagree with the
+ * registry's manifest, the second restating what the lock already records alongside a
+ * fingerprint of unverified composition. To anyone reading a vendored skill they are
+ * noise, and to skillbarn they are a second answer to a question the lock already
+ * answers.
+ *
+ * Stripping here is what makes the vendored tree wholly covered by the lock's integrity:
+ * afterwards every file that reaches the project is one the digest hashed, so nothing —
+ * a stray `.clawhub/SKILL.md` a recursing loader would pick up, say — can ride in under
+ * the digest exclusion.
+ */
+async function stripClawhubBookkeeping(installed: string): Promise<void> {
+  for (const name of CLAWHUB_BOOKKEEPING) {
+    await removePath(join(installed, name))
+  }
 }
 
 /**

@@ -113,6 +113,54 @@ The digest rule:
 - symlinks hash as `symlink:<target>` and are never followed, so a vendored tree cannot
   make its own digest depend on something outside itself
 
+## The registry client's bookkeeping is stripped, not vendored
+
+`clawhub install` writes two things into every skill that the skill's author never wrote:
+`_meta.json`, rewritten locally with an `ownerId` and `publishedAt` that disagree with what
+the registry serves, and `.clawhub/origin.json`, recording the registry URL, version and a
+fingerprint. `vendorSkill()` deletes both in staging, before the tree is hashed or moved, so
+neither reaches the project.
+
+Three reasons, in order of weight.
+
+**It closes the digest exclusion.** Anything excluded from the digest is, by construction,
+bytes inside a skillbarn-guaranteed tree that `skb verify` cannot see. A `.clawhub/SKILL.md`
+would be neither hashed nor locked — and OpenClaw finds `SKILL.md` anywhere under a root
+([loaders](loaders.md#documented)), so it would be loaded. Stripping makes the stronger
+statement true: *every file in a vendored directory is covered by the lock's integrity.*
+
+**It removes a second answer to a settled question.** `origin.json` restates the owner,
+slug and version the lock already records, next to a fingerprint whose composition is
+unverified. Two authorities on what is installed is one too many, and the lock is the one
+`install` and `verify` actually obey.
+
+**It is confusing to read.** Someone opening a vendored skill should see the skill. An
+opaque backend `ownerId` and a stale `installedAt` are noise to every reader, human or
+agent, who did not run the install.
+
+`skill-card.md` is **not** stripped, despite also being generated rather than authored:
+ClawHub's publish pipeline produces it server-side, but the registry then serves it as part
+of the version artifact with a matching `sha256`. It is published content, it carries the
+license and terms, and deleting it would break "the installed tree is the published tree".
+That it lands in a directory loaders walk is a real cost — but it is ClawHub's to fix by
+keeping the card in registry metadata, not skillbarn's to fix by editing skills.
+
+Two consequences worth knowing:
+
+- The digest exclusion in `src/digest.ts` **stays**. The registry's own file manifest still
+  lists `_meta.json`, so `compareFileHashes` needs it on the expected side; and trees
+  installed before the strip must keep verifying against the integrity already in their
+  lock. Stripping does not change any digest — it only changes what is on disk.
+- `.clawhub/` inside the skills directory now means exactly one thing: someone ran `clawhub
+  install` against the project directly. `checkInvariants()` reports it, because that skill
+  is outside the lock's control and `skb install` will not restore it. Before the strip, the
+  same evidence was ambiguous — it could equally have been an orphaned skillbarn install.
+
+What this gives up: a lock entry deleted by hand, while its directory survives, is no longer
+distinguishable from a hand-authored skill. A crash cannot produce that state — `remove`
+deletes the tree before it writes the lock, so the window leaves a lock entry with no
+directory, which `lock-matches-disk` already catches from the other side.
+
 ## `skillbarn.json` is intent, `skillbarn.lock` is fact
 
 Two files at the project root, as npm has them. `add` and `remove` write both; `install`

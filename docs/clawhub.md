@@ -59,9 +59,22 @@ Per-file hashes match the installed bytes exactly for `README.md`, `SKILL.md` an
 `skill-card.md`. **`_meta.json` does not** — ClawHub rewrites it locally with a different
 `ownerId` and `publishedAt`. Any digest must exclude it, and `.clawhub/` with it.
 
-## Per-skill provenance
+## Per-skill bookkeeping
 
-`<skill>/.clawhub/origin.json` carries the registry URL, slug, `installedVersion`,
-`installedAt` and a `fingerprint` (sha256). It survives the skill being moved, which is how
-it ends up inside a flattened install. Its composition is unverified — skillbarn does not
-depend on it and computes its own digest.
+`install` writes two files into the skill that the author never published:
+
+- `_meta.json` — `ownerId`, `slug`, `version`, `publishedAt`. The registry serves one too,
+  but with different values (see above), so it cannot be verified against the manifest.
+- `.clawhub/origin.json` — registry URL, slug, `ownerHandle`, `installedVersion`,
+  `installedAt` and a `fingerprint` (sha256) of unverified composition. It survives the
+  skill being moved, which is how it would otherwise end up inside a flattened install.
+
+skillbarn deletes both in staging and computes its own digest, so neither reaches a project.
+Verified against the live registry on 2026-08-02: after `skb add @shbernal/rfc-lookup`, the
+vendored tree is `SKILL.md`, `skill-card.md` and `scripts/rfc.py` — and the integrity is
+byte-identical to what a pre-strip install recorded, since both files were already excluded
+from the digest. See [design](design.md#the-registry-clients-bookkeeping-is-stripped-not-vendored).
+
+`skill-card.md` is a different case and is kept: ClawHub generates it at publish time, but
+it is then served in `version.files[]` with a matching `sha256`, so it is part of the
+published artifact rather than local state.

@@ -67,10 +67,11 @@ describe('add', () => {
 
     expect(await pathExists(join(project.skillsDir, 'greeter', 'SKILL.md'))).toBe(true)
     expect(await pathExists(join(project.skillsDir, '@fixture'))).toBe(false)
-    // ClawHub's provenance file survives the move, and is excluded from the digest.
-    expect(await pathExists(join(project.skillsDir, 'greeter', '.clawhub', 'origin.json'))).toBe(
-      true,
-    )
+    // ClawHub's own bookkeeping is stripped in staging: what lands in the project is
+    // the published skill and nothing else, so the whole tree is under the lock.
+    expect(await pathExists(join(project.skillsDir, 'greeter', '.clawhub'))).toBe(false)
+    expect(await pathExists(join(project.skillsDir, 'greeter', '_meta.json'))).toBe(false)
+    expect(await pathExists(join(project.skillsDir, 'greeter', 'README.md'))).toBe(true)
 
     // The project was a bare git checkout, so this run created the manifest — and a
     // manifest skillbarn creates states the settings it is about to run under.

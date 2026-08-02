@@ -8,7 +8,8 @@
  *
  * Configured entirely by environment:
  *   FAKE_CLAWHUB_FIXTURES  directory of `@owner/slug/{inspect.json,files/**}`
- *   FAKE_CLAWHUB_MODE      ok | empty | partial-crash | bad-hash | install-fails
+ *   FAKE_CLAWHUB_MODE      ok | empty | partial-crash | bad-hash | install-fails |
+ *                          bookkeeping-stowaway
  *   FAKE_CLAWHUB_LOG       optional file; one JSON line per invocation
  */
 import { createHash } from 'node:crypto'
@@ -150,7 +151,8 @@ if (command === 'install') {
 
   cpSync(join(fixtureDir(ref), 'files'), target, { recursive: true })
 
-  // ClawHub rewrites _meta.json locally, which is why the digest excludes it.
+  // Bookkeeping the real CLI writes at install time. skillbarn strips both in staging,
+  // so keeping them here is what puts that stripping under test.
   if (existsSync(join(target, '_meta.json'))) {
     const meta = JSON.parse(readFileSync(join(target, '_meta.json'), 'utf8'))
     meta.ownerId = 'local-rewrite'
@@ -162,6 +164,12 @@ if (command === 'install') {
     join(target, '.clawhub', 'origin.json'),
     `${JSON.stringify({ slug: ref.slug, installedVersion: options.version ?? '1.0.0', fingerprint: 'unverified' }, null, 2)}\n`,
   )
+
+  // A second skill hidden where the digest cannot see it. Nothing observed in the wild;
+  // it is the shape the exclusion rule would admit if the tree were not stripped.
+  if (mode === 'bookkeeping-stowaway') {
+    writeFileSync(join(target, '.clawhub', 'SKILL.md'), '---\nname: stowaway\n---\nhidden\n')
+  }
   process.stdout.write(`installed @${ref.owner}/${ref.slug}\n`)
   process.exit(0)
 }

@@ -5,7 +5,8 @@ import { cmdAdd } from '../../src/commands/add.ts'
 import { cmdInstall } from '../../src/commands/install.ts'
 import { cmdList } from '../../src/commands/list.ts'
 import { cmdVerify } from '../../src/commands/verify.ts'
-import { pathExists } from '../../src/fs-tree.ts'
+import { isDigestExcluded, treeDigest } from '../../src/digest.ts'
+import { hashTree, pathExists } from '../../src/fs-tree.ts'
 import { checkInvariants } from '../../src/invariants.ts'
 import { type FixtureProject, makeFixtureProject, useEnv } from '../helpers/fixture-project.ts'
 
@@ -92,15 +93,45 @@ describe('a crash between install and flatten', () => {
   })
 })
 
-it('reports a vendored-looking directory that the lock does not know about', async () => {
-  await setup()
-  await mkdir(join(project.skillsDir, 'stowaway', '.clawhub'), { recursive: true })
-  await writeFile(join(project.skillsDir, 'stowaway', '.clawhub', 'origin.json'), '{}')
+describe("clawhub's own bookkeeping", () => {
+  it('is stripped in staging, so it never reaches the project', async () => {
+    await setup()
+    await add('@fixture/greeter')
 
-  const violations = await checkInvariants(project.root)
-  expect(violations).toContainEqual({
-    invariant: 'lock-matches-disk',
-    detail: 'stowaway looks vendored (has .clawhub/) but is not in the lock',
+    const skill = join(project.skillsDir, 'greeter')
+    expect(await pathExists(join(skill, '.clawhub'))).toBe(false)
+    expect(await pathExists(join(skill, '_meta.json'))).toBe(false)
+
+    // The strip is what makes this true: every remaining file is one the digest hashed,
+    // so nothing in the tree is outside the integrity the lock records.
+    const files = await hashTree(skill)
+    expect(files.filter((f) => isDigestExcluded(f.path))).toEqual([])
+    expect(treeDigest(files)).toBe(
+      JSON.parse(await project.read('skillbarn.lock')).skills.greeter.integrity,
+    )
+  })
+
+  it('cannot smuggle a second skill in past the digest exclusion', async () => {
+    await setup({ mode: 'bookkeeping-stowaway' })
+    await add('@fixture/greeter')
+
+    // `.clawhub/` is excluded from the digest, so a SKILL.md hidden there would be
+    // neither hashed nor locked — and OpenClaw, which finds SKILL.md anywhere under a
+    // root, would load it. Stripping the directory is what closes that off.
+    expect(await pathExists(join(project.skillsDir, 'greeter', '.clawhub'))).toBe(false)
+    expect(await checkInvariants(project.root)).toEqual([])
+  })
+
+  it('marks a directory that clawhub installed here directly', async () => {
+    await setup()
+    await mkdir(join(project.skillsDir, 'stowaway', '.clawhub'), { recursive: true })
+    await writeFile(join(project.skillsDir, 'stowaway', '.clawhub', 'origin.json'), '{}')
+
+    const violations = await checkInvariants(project.root)
+    expect(violations).toContainEqual({
+      invariant: 'lock-matches-disk',
+      detail: 'stowaway was installed by clawhub directly, not by skillbarn',
+    })
   })
 })
 

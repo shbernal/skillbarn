@@ -8,7 +8,13 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 export const FAKE_CLAWHUB = join(HERE, 'fake-clawhub.mjs')
 export const FIXTURE_REGISTRY = join(HERE, '..', 'fixtures', 'registry')
 
-export type FakeMode = 'ok' | 'empty' | 'partial-crash' | 'bad-hash' | 'install-fails'
+export type FakeMode =
+  | 'ok'
+  | 'empty'
+  | 'partial-crash'
+  | 'bad-hash'
+  | 'install-fails'
+  | 'bookkeeping-stowaway'
 
 export type FixtureProject = {
   root: string

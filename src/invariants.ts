@@ -58,14 +58,17 @@ export async function checkInvariants(projectDir: string): Promise<Violation[]> 
   const onDisk = await readDirNames(project.skillsDir)
 
   // 1 (other direction): a directory that is neither locked nor plainly local.
-  // "Local" means hand-authored and unmanaged; the lock is the only definition of
-  // vendored, since flattening removed the `@` that used to distinguish them.
+  // The lock is the only definition of vendored — flattening removed the `@` that used
+  // to distinguish them — so unlocked normally means hand-authored, which is legal.
+  // `.clawhub/` is the exception: skillbarn strips it in staging, so a copy that still
+  // has one was put here by `clawhub install` running against this directory directly.
+  // That skill is outside the lock's control and `skb install` will not restore it.
   for (const name of onDisk) {
     if (name.startsWith('@') || managedDirs.has(name)) continue
     if (await pathExists(join(project.skillsDir, name, '.clawhub'))) {
       violations.push({
         invariant: 'lock-matches-disk',
-        detail: `${name} looks vendored (has .clawhub/) but is not in the lock`,
+        detail: `${name} was installed by clawhub directly, not by skillbarn`,
       })
     }
   }

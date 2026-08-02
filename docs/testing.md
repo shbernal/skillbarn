@@ -25,12 +25,14 @@ configured entirely through the environment:
 
 The failure modes are the point. `bad-hash` serves bytes that disagree with the advertised
 manifest, `empty` reports success and installs nothing, `partial-crash` dies mid-install,
-`install-fails` exits non-zero. Each has a test asserting the project is untouched
-afterwards.
+`install-fails` exits non-zero, `bookkeeping-stowaway` hides a second `SKILL.md` under
+`.clawhub/`. Each has a test asserting the project is untouched afterwards.
 
 It also mimics the real client where that matters: it always writes
-`<workdir>/.clawhub/lock.json`, rewrites `_meta.json` after install, and emits the
-multi-owner disambiguation error for an ambiguous bare slug.
+`<workdir>/.clawhub/lock.json`, rewrites `_meta.json` and drops a `.clawhub/origin.json`
+into the skill after install, and emits the multi-owner disambiguation error for an
+ambiguous bare slug. Writing the per-skill bookkeeping is what puts the stripping of it
+under test — a fake that never wrote it could not prove it gets removed.
 
 ## Layers
 
