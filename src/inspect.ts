@@ -21,11 +21,24 @@ export type InspectResult = {
   security: SecuritySummary
 }
 
+/** One thing a scanner looked at and did not rate `ok`. */
+export type SecurityNote = {
+  label: string
+  rating: string
+  detail: string
+}
+
 export type SecuritySummary = {
   status: string | null
   hasWarnings: boolean
   /** Per-scanner verdicts, e.g. `vt`, `skillspector`, `llm`. */
   scanners: Record<string, string>
+  /** A scanner's own severity rating for the version, when one reported it. */
+  severity: string | null
+  /** The dimensions a scanner flagged. Empty is the common case and says so. */
+  notes: SecurityNote[]
+  /** A scanner's advice to whoever is about to install this. */
+  guidance: string | null
 }
 
 function fail(detail: string): never {
@@ -83,24 +96,65 @@ export function parseInspectJson(text: string): InspectResult {
   }
 }
 
+/**
+ * The scan report ClawHub already ships inside `inspect`.
+ *
+ * There is a `clawhub scan` subcommand, and it is not what this is: it *submits* a new
+ * scan and waits on a queue, measured at around a minute. The stored verdicts for a
+ * published version arrive here for free, on a call the add flow already makes, which is
+ * why nothing shells out for them. See [docs/clawhub.md](../docs/clawhub.md).
+ *
+ * Nothing here is keyed to a scanner by name. `severity`, `dimensions` and `guidance`
+ * are today's `skillspector` and `llm` fields, but a report skillbarn cannot read is a
+ * report the user never sees, so anything shaped right is read wherever it turns up.
+ */
 function parseSecurity(raw: unknown): SecuritySummary {
+  const empty: SecuritySummary = {
+    status: null,
+    hasWarnings: false,
+    scanners: {},
+    severity: null,
+    notes: [],
+    guidance: null,
+  }
   const security = asRecord(raw)
-  if (security === null) return { status: null, hasWarnings: false, scanners: {} }
+  if (security === null) return empty
 
   const scanners: Record<string, string> = {}
-  const scannersRaw = asRecord(security.scanners)
-  if (scannersRaw !== null) {
-    for (const [name, value] of Object.entries(scannersRaw)) {
-      const scanner = asRecord(value)
-      if (scanner === null) continue
-      const status = asString(scanner.normalizedStatus) ?? asString(scanner.status)
-      if (status !== null) scanners[name] = status
+  const notes: SecurityNote[] = []
+  let severity: string | null = null
+  let guidance: string | null = null
+
+  for (const [name, value] of Object.entries(asRecord(security.scanners) ?? {})) {
+    const scanner = asRecord(value)
+    if (scanner === null) continue
+    const status = asString(scanner.normalizedStatus) ?? asString(scanner.status)
+    if (status !== null) scanners[name] = status
+    severity ??= asString(scanner.severity)
+    guidance ??= asString(scanner.guidance)
+
+    if (!Array.isArray(scanner.dimensions)) continue
+    for (const entry of scanner.dimensions) {
+      const dimension = asRecord(entry)
+      if (dimension === null) continue
+      const rating = asString(dimension.rating)
+      // `ok` is the overwhelming majority and printing it would bury the rest.
+      if (rating === null || rating === 'ok') continue
+      notes.push({
+        label: asString(dimension.label) ?? asString(dimension.name) ?? name,
+        rating,
+        detail: asString(dimension.detail) ?? '',
+      })
     }
   }
+
   return {
     status: asString(security.status),
     hasWarnings: security.hasWarnings === true,
     scanners,
+    severity,
+    notes,
+    guidance,
   }
 }
 

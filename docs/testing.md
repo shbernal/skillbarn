@@ -20,13 +20,26 @@ configured entirely through the environment:
 | variable | meaning |
 |---|---|
 | `FAKE_CLAWHUB_FIXTURES` | fixture root to serve from |
-| `FAKE_CLAWHUB_MODE` | `ok`, `empty`, `partial-crash`, `bad-hash`, `install-fails` |
+| `FAKE_CLAWHUB_MODE` | `ok`, `empty`, `partial-crash`, `bad-hash`, `install-fails`, `bookkeeping-stowaway` |
+| `FAKE_CLAWHUB_PUBLISHED` | a version published *since* the fixture was recorded, per skill |
 | `FAKE_CLAWHUB_LOG` | append each invocation's argv here, so tests can assert on *how* it was called |
 
 The failure modes are the point. `bad-hash` serves bytes that disagree with the advertised
 manifest, `empty` reports success and installs nothing, `partial-crash` dies mid-install,
 `install-fails` exits non-zero, `bookkeeping-stowaway` hides a second `SKILL.md` under
 `.clawhub/`. Each has a test asserting the project is untouched afterwards.
+
+`FAKE_CLAWHUB_PUBLISHED` is how a test makes time pass: `{"@fixture/greeter": {"version":
+"1.3.0", "files": {"SKILL.md": "..."}}}` becomes the latest, and is served **for that
+version only**, so an update can also be rolled back. Naming the version already locked
+instead of a new one produces a *republication* — same version, different bytes — which is
+the case `skb outdated` exists to catch and which no other seam can express. A per-skill
+`"fails": true` fails the install of that one skill, which the whole-run modes cannot: it is
+what puts "the skills an update already finished stay committed" under test.
+
+The fake also copies `skill.description` out of the `SKILL.md` it is serving, because the
+real registry does ([clawhub](clawhub.md#inspect---files---json)). A fake that let the two
+drift would make the diff `skb update` shows meaningless.
 
 It also mimics the real client where that matters: it always writes
 `<workdir>/.clawhub/lock.json`, rewrites `_meta.json` and drops a `.clawhub/origin.json`

@@ -5,7 +5,9 @@ import { cmdAdd } from './commands/add.ts'
 import { cmdInit } from './commands/init.ts'
 import { cmdInstall } from './commands/install.ts'
 import { cmdList } from './commands/list.ts'
+import { cmdOutdated } from './commands/outdated.ts'
 import { cmdRemove } from './commands/remove.ts'
+import { cmdUpdate } from './commands/update.ts'
 import { cmdVerify } from './commands/verify.ts'
 import { isSkbError } from './errors.ts'
 import { err, out } from './ui.ts'
@@ -16,13 +18,15 @@ usage
   skb init [--dir <path>]
   skb add <@owner/slug> [--version <v>] [--yes] [--force]
   skb install [--force]                          (alias: i)
+  skb update [<slug>] [--version <v>] [--yes]    (alias: up)
+  skb outdated
   skb remove <slug>                              (alias: rm)
   skb list
   skb verify
 
 options
   --dir <path>    skills directory to configure (init only)
-  --version <v>   version to add (add only); as a bare flag, prints skillbarn's version
+  --version <v>   version to add or update to; as a bare flag, prints skillbarn's version
   --yes, -y       skip the confirmation prompt
   --force         overwrite an existing local copy
   --help, -h      this text
@@ -36,7 +40,7 @@ type Flags = {
   positionals: string[]
 }
 
-/** Hand-rolled: the surface is five commands and four flags, and this ships with no deps. */
+/** Hand-rolled: the surface is a handful of commands and four flags, and this ships with no deps. */
 function parseArgs(argv: readonly string[], withValue: ReadonlySet<string>): Flags {
   const values = new Map<string, string | boolean>()
   const positionals: string[] = []
@@ -121,8 +125,8 @@ async function main(argv: readonly string[]): Promise<number> {
         cwd,
       })
     }
-    // `i` and `rm` are the two commands typed often enough to be worth an alias, and both
-    // spellings are the ones the neighbouring package managers already train.
+    // `i`, `up` and `rm` are the commands typed often enough to be worth an alias, and
+    // the spellings are the ones the neighbouring package managers already train.
     case 'i':
     case 'install': {
       const { values, positionals } = parseArgs(rest, new Set())
@@ -131,6 +135,30 @@ async function main(argv: readonly string[]): Promise<number> {
         throw new UsageError('install takes no arguments — it restores the whole lock')
       }
       return cmdInstall({ force: values.has('--force'), cwd })
+    }
+    case 'up':
+    case 'update': {
+      const { values, positionals } = parseArgs(rest, new Set(['--version']))
+      rejectUnknown(values, ['--version', '--yes', '-y'])
+      if (positionals.length > 1) throw new UsageError('update takes one skill at a time')
+      const requested = values.get('--version')
+      // A version is a statement about one skill. Applied to every locked skill it
+      // would be an instruction to make them all claim the same version number.
+      if (requested !== undefined && positionals.length === 0) {
+        throw new UsageError('--version needs a skill, e.g. skb update greeter --version 1.3.0')
+      }
+      return cmdUpdate({
+        ref: positionals[0],
+        version: typeof requested === 'string' ? requested : undefined,
+        yes: values.has('--yes') || values.has('-y'),
+        cwd,
+      })
+    }
+    case 'outdated': {
+      const { values, positionals } = parseArgs(rest, new Set())
+      rejectUnknown(values, [])
+      if (positionals.length > 0) throw new UsageError('outdated takes no arguments')
+      return cmdOutdated({ cwd })
     }
     case 'rm':
     case 'remove': {

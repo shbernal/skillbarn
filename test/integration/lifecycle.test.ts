@@ -12,7 +12,12 @@ import { cmdRemove } from '../../src/commands/remove.ts'
 import { cmdVerify } from '../../src/commands/verify.ts'
 import { digestTree, pathExists } from '../../src/fs-tree.ts'
 import { checkInvariants, formatViolations } from '../../src/invariants.ts'
-import { type FixtureProject, makeFixtureProject, useEnv } from '../helpers/fixture-project.ts'
+import {
+  capture,
+  type FixtureProject,
+  makeFixtureProject,
+  useEnv,
+} from '../helpers/fixture-project.ts'
 
 const CLI = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'cli.ts')
 const run = promisify(execFile)
@@ -26,20 +31,7 @@ async function expectNoViolations(root: string): Promise<void> {
 }
 
 /** The confirmation gate and everything it prints go to stderr, so that is what is read. */
-async function captureStderr(run: () => Promise<unknown>): Promise<string> {
-  const written: string[] = []
-  const original = process.stderr.write.bind(process.stderr)
-  process.stderr.write = ((chunk: string | Uint8Array) => {
-    written.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'))
-    return true
-  }) as typeof process.stderr.write
-  try {
-    await run()
-  } finally {
-    process.stderr.write = original
-  }
-  return written.join('')
-}
+const captureStderr = (run: () => Promise<unknown>) => capture('stderr', run)
 
 async function setup(options: Parameters<typeof makeFixtureProject>[0] = {}): Promise<void> {
   project = await makeFixtureProject({ localSkills: ['my-local'], ...options })
@@ -313,18 +305,7 @@ describe('remove and list', () => {
       force: false,
       cwd: project.root,
     })
-    const lines: string[] = []
-    const write = process.stdout.write.bind(process.stdout)
-    process.stdout.write = ((chunk: string) => {
-      lines.push(String(chunk))
-      return true
-    }) as typeof process.stdout.write
-    try {
-      await cmdList({ cwd: project.root })
-    } finally {
-      process.stdout.write = write
-    }
-    const output = lines.join('')
+    const output = await capture('stdout', () => cmdList({ cwd: project.root }))
     expect(output).toMatch(/greeter\s+@fixture\s+1\.2\.0\s+ok/)
     expect(output).toMatch(/my-local\s+—\s+—\s+local/)
   })
@@ -494,11 +475,32 @@ describe('the cli itself', () => {
     expect(stdout.trim()).toBe('ok')
   })
 
+  it('answers outdated with an exit code, so CI can read it', async () => {
+    const env = { ...process.env, ...project.env }
+    await run('node', [CLI, 'add', '@fixture/greeter', '--yes'], { cwd: project.root, env })
+
+    const { stdout } = await run('node', [CLI, 'outdated'], { cwd: project.root, env })
+    expect(stdout).toContain('current')
+
+    const published = JSON.stringify({ '@fixture/greeter': { version: '1.3.0' } })
+    await expect(
+      run('node', [CLI, 'outdated'], {
+        cwd: project.root,
+        env: { ...env, FAKE_CLAWHUB_PUBLISHED: published },
+      }),
+    ).rejects.toMatchObject({ code: 1 })
+  })
+
   it('exits 2 on a usage error and 1 on a user error', async () => {
     const env = { ...process.env, ...project.env }
     await expect(run('node', [CLI, 'nonsense'], { cwd: project.root, env })).rejects.toMatchObject({
       code: 2,
     })
+    // A version is a statement about one skill, so `update --version` without one is not
+    // an instruction skillbarn can carry out.
+    await expect(
+      run('node', [CLI, 'update', '--version', '1.3.0'], { cwd: project.root, env }),
+    ).rejects.toMatchObject({ code: 2 })
     await expect(
       run('node', [CLI, 'remove', 'absent'], { cwd: project.root, env }),
     ).rejects.toMatchObject({ code: 1 })

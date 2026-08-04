@@ -50,7 +50,8 @@ exist yet, so the first release had to come from a laptop.
 
 ```
 src/
-  slug lock manifest digest gitignore frontmatter inspect gate   pure, no I/O
+  slug lock manifest digest gitignore frontmatter                pure, no I/O
+  inspect gate diff update                                       "
   fs-tree project staging vendor invariants                      touch the disk
   clawhub.ts                                                     the only subprocess
   commands/  cli.ts                                              wiring
@@ -93,7 +94,13 @@ This is why skillbarn does not create the `.claude/skills` symlink for you, temp
 is; if that ever changes it is a `skb link <loader>` with its own invariants, not a rider on
 `add`. See [docs/design.md](docs/design.md#wiring-loaders-up-is-not-skillbarns-job-for-now).
 
-**`install` never writes the lock.** Only `add` and `remove` do.
+**`install` never writes the lock, and neither does `outdated`.** Only `add`, `update` and
+`remove` do.
+
+**`update` writes each skill through completely before starting the next** — tree, then
+lock, then manifest. That is what makes a failure part-way through a multi-skill update
+leave a project that still matches its own lock. See
+[docs/design.md](docs/design.md#an-update-is-a-re-grant-of-trust-not-a-continuation-of-one).
 
 **A manifest is written with its defaults only when it is created.** `newManifest()` in
 `src/manifest.ts` is the one place that happens, and `init` and `add` share it. A *rewrite*

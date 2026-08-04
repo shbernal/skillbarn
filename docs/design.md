@@ -168,8 +168,71 @@ obeys the lock alone and *reports* disagreement instead of resolving it. There i
 resolution and no dependency graph — skills are leaf nodes, and a resolver is where this
 becomes a year of work.
 
-`install` never writes the lock. That one rule is what makes a fresh clone reproducible:
-the only way the lock changes is a human running `add` or `remove`.
+`install` never writes the lock, and neither does `outdated`. That one rule is what makes a
+fresh clone reproducible: the only way the lock changes is a human running `add`, `update`
+or `remove`.
+
+## An update is a re-grant of trust, not a continuation of one
+
+`skb update` shows the version delta, the registry's scan report, the `SKILL.md` diff, and
+which commands and environment variables the new text mentions that the installed one did
+not — then asks, default-no, **per skill**.
+
+That is more ceremony than a package manager spends on a version bump, and it is deliberate.
+ClawHub publishing is open: a GitHub account a week old is enough, with no gatekeeping, and
+one 2026 report put 820-odd of ~10.7k published skills as flagged malicious. A new version
+is therefore a fresh grant of execution trust to whoever holds that account rather than a
+continuation of the grant already given to the version that was read once at `add` time. The
+one prompt per skill follows from the same reasoning: a single prompt covering five skills is
+the prompt nobody reads, and the diffs scroll past it.
+
+The diff costs nothing extra. `inspect --files --json` already returns `skill.description`,
+which is byte-identical to the `SKILL.md` being offered ([clawhub](clawhub.md#inspect---files---json)),
+so the new text is in hand before anything is downloaded.
+
+**A version that did not move is still an update.** `skb outdated` and `skb update` both
+classify a skill as `current`, `outdated`, or `republished` — the last being the same
+version string serving different bytes, which nothing that compares version numbers can see.
+It is detectable without a download for the same reason: the integrity a version will have
+once installed is a function of the file manifest the registry already served, so
+`manifestIntegrity()` and the digest `vendorSkill()` records are the same number by
+construction rather than by coincidence.
+
+Nothing here does semver. `outdated` reports what the registry's `latest` tag resolves to
+and never compares two version strings for order — ranges and resolution stay
+[rejected](#skillbarnjson-is-intent-skillbarnlock-is-fact).
+
+**Several skills is where "leaves the project exactly as it was found" gets weaker, on
+purpose.** Each accepted skill is written through completely — tree, then lock, then
+manifest — before the next is looked at. A failure part-way therefore leaves a project that
+still matches its own lock, with fewer skills moved than asked for, rather than one held to
+a transaction skillbarn would have to implement across the filesystem to honour.
+
+## skillbarn's lock supersedes ClawHub's pins
+
+ClawHub has `pin` / `unpin`, which mark a skill in its own lockfile so `clawhub update`
+skips it. skillbarn does not drive them, does not expose them, and does not add a second
+pin mechanism of its own.
+
+The mechanism is inert here by construction, which is what makes this a cheap decision
+rather than a contested one. ClawHub's lockfile only ever exists inside the staging workdir
+skillbarn creates and deletes; `clawhub update --all` cannot see a flattened skill to skip
+in the first place; and `skb install` never calls `update` at all. A pin set through
+`clawhub` would have nothing to act on.
+
+What replaces it is what was already there: **the recorded version is the pin.** `add` and
+`update` write an exact version into both `skillbarn.json` and `skillbarn.lock`, and nothing
+else ever moves it — `install` restores what the lock says and never re-resolves. A skill
+you do not want moving is one you do not name in `skb update`. Two competing pin mechanisms
+would have been the real cost, since only one of them could be the one `install` obeys.
+
+A manifest that declares one version while the lock records another is only reachable by
+hand-editing, and is reported by `install` rather than resolved — resolving it would mean
+re-resolving a version over the network inside a restore. Note that skillbarn cannot catch
+the narrower case of a lock whose `version` field alone was edited: the integrity still
+matches the bytes on disk, and deciding that those bytes are not that version's needs the
+registry. `skb outdated` is where it surfaces, which is the correct place for a check that
+needs the network.
 
 ## The configuration lives in the manifest, not beside it
 

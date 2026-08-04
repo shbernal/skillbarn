@@ -4,11 +4,18 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { cmdAdd } from '../../src/commands/add.ts'
 import { cmdInstall } from '../../src/commands/install.ts'
 import { cmdList } from '../../src/commands/list.ts'
+import { cmdUpdate } from '../../src/commands/update.ts'
 import { cmdVerify } from '../../src/commands/verify.ts'
 import { isDigestExcluded, treeDigest } from '../../src/digest.ts'
-import { hashTree, pathExists } from '../../src/fs-tree.ts'
+import { digestTree, hashTree, pathExists } from '../../src/fs-tree.ts'
 import { checkInvariants } from '../../src/invariants.ts'
-import { type FixtureProject, makeFixtureProject, useEnv } from '../helpers/fixture-project.ts'
+import {
+  type FakeMode,
+  type FixtureProject,
+  makeFixtureProject,
+  type Publication,
+  useEnv,
+} from '../helpers/fixture-project.ts'
 
 /**
  * Failure modes the live registry cannot be asked to produce on demand. Each one is a
@@ -163,6 +170,76 @@ describe('a directory that nothing identifies as a project', () => {
 
     expect(await cmdInstall({ force: false, cwd: project.root })).toBe(0)
     expect(await cmdVerify({ cwd: project.root })).toBe(0)
+  })
+})
+
+/**
+ * Accepting a new version is a second grant of execution trust, so a failure part-way
+ * through one has to leave the project describable in a sentence. For a single skill
+ * that sentence is "exactly as it was found". For several it is weaker and deliberately
+ * so: every skill is written through completely before the next is looked at, so what
+ * survives a failure is a project that still matches its own lock.
+ */
+describe('an update that fails part-way', () => {
+  const publish = (published: Record<string, Publication>, mode?: FakeMode) => {
+    restoreEnv?.()
+    restoreEnv = useEnv({
+      ...project.env,
+      ...(mode === undefined ? {} : { FAKE_CLAWHUB_MODE: mode }),
+      FAKE_CLAWHUB_PUBLISHED: JSON.stringify(published),
+    })
+  }
+  const update = () =>
+    cmdUpdate({ ref: undefined, version: undefined, yes: true, cwd: project.root })
+
+  it('leaves the version it could not verify exactly where it was', async () => {
+    await setup()
+    await add('@fixture/greeter')
+    const before = await digestTree(join(project.skillsDir, 'greeter'))
+
+    publish({ '@fixture/greeter': { version: '1.3.0' } }, 'bad-hash')
+    await expect(update()).rejects.toThrow(/does not match the registry's own file manifest/)
+
+    expect(await digestTree(join(project.skillsDir, 'greeter'))).toBe(before)
+    expect(JSON.parse(await project.read('skillbarn.lock')).skills.greeter.version).toBe('1.2.0')
+    expect(await checkInvariants(project.root)).toEqual([])
+  })
+
+  it('leaves nothing behind when the download itself fails', async () => {
+    await setup()
+    await add('@fixture/greeter')
+
+    publish({ '@fixture/greeter': { version: '1.3.0' } }, 'install-fails')
+    await expect(update()).rejects.toThrow(/clawhub install failed/)
+
+    expect(JSON.parse(await project.read('skillbarn.lock')).skills.greeter.version).toBe('1.2.0')
+    expect(await checkInvariants(project.root)).toEqual([])
+  })
+
+  it('keeps the skills it already finished, and the lock agrees with all of them', async () => {
+    await setup()
+    await add('@fixture/greeter')
+    await add('@fixture/pdf-filler')
+    const untouched = await digestTree(join(project.skillsDir, 'pdf-filler'))
+
+    publish({
+      '@fixture/greeter': { version: '1.3.0' },
+      '@fixture/pdf-filler': { version: '0.5.0', fails: true },
+    })
+    await expect(update()).rejects.toThrow(/clawhub install failed/)
+
+    const lock = JSON.parse(await project.read('skillbarn.lock'))
+    expect(lock.skills.greeter.version).toBe('1.3.0')
+    expect(lock.skills['pdf-filler'].version).toBe('0.4.1')
+    expect(await digestTree(join(project.skillsDir, 'pdf-filler'))).toBe(untouched)
+
+    // The manifest moved with it, so a fresh clone reproduces what is actually here.
+    expect(JSON.parse(await project.read('skillbarn.json')).skills).toEqual({
+      '@fixture/greeter': { source: 'clawhub', version: '1.3.0' },
+      '@fixture/pdf-filler': { source: 'clawhub', version: '0.4.1' },
+    })
+    expect(await cmdVerify({ cwd: project.root })).toBe(0)
+    expect(await checkInvariants(project.root)).toEqual([])
   })
 })
 

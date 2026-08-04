@@ -108,6 +108,15 @@ export type Reconciliation = {
   missingFromLock: string[]
   /** Locked but no longer declared — needs `skb remove`. */
   staleInLock: string[]
+  /**
+   * Declared at one version and locked at another — needs `skb update`.
+   *
+   * Only a hand edit produces this: `add` and `update` write both halves together. It
+   * is reported rather than resolved for the same reason as the other two, and the
+   * resolution is the loud one, because obeying the declaration would mean re-resolving
+   * a version over the network inside a restore.
+   */
+  versionDrift: { slug: string; declared: string; locked: string }[]
 }
 
 /**
@@ -125,11 +134,22 @@ export function reconcile(manifest: Manifest, lock: Lock): Reconciliation {
 
   const restore: LockEntry[] = []
   const staleInLock: string[] = []
+  const versionDrift: Reconciliation['versionDrift'] = []
   for (const slug of lockedSlugs(lock)) {
     const entry = lock.skills[slug]
     if (entry === undefined) continue
     restore.push(entry)
-    if (!declared.has(slug)) staleInLock.push(slug)
+    const ref = declared.get(slug)
+    if (ref === undefined) {
+      staleInLock.push(slug)
+      continue
+    }
+    // A declaration with no version means "whatever was latest when it was added",
+    // which the lock answers rather than contradicts.
+    const wanted = manifest.skills[ref]?.version
+    if (wanted !== undefined && wanted !== entry.version) {
+      versionDrift.push({ slug, declared: wanted, locked: entry.version })
+    }
   }
 
   const missingFromLock: string[] = []
@@ -137,5 +157,5 @@ export function reconcile(manifest: Manifest, lock: Lock): Reconciliation {
     if (lock.skills[slug] === undefined) missingFromLock.push(ref)
   }
 
-  return { restore, missingFromLock: missingFromLock.sort(), staleInLock }
+  return { restore, missingFromLock: missingFromLock.sort(), staleInLock, versionDrift }
 }

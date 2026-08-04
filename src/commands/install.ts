@@ -39,6 +39,12 @@ export async function cmdInstall(options: InstallOptions): Promise<number> {
   for (const slug of plan.staleInLock) {
     err(`warning: ${slug} is locked but not in skillbarn.json — run \`skb remove ${slug}\``)
   }
+  for (const drift of plan.versionDrift) {
+    err(
+      `warning: ${drift.slug} is declared at ${drift.declared} but locked at ${drift.locked} — ` +
+        `run \`skb update ${drift.slug} --version ${drift.declared}\``,
+    )
+  }
 
   // Before anything else: a crash between install and flatten leaves a scoped
   // directory behind, which recursing loaders would pick up as a second copy.

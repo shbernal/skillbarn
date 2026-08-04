@@ -24,11 +24,24 @@ export type FixtureProject = {
   /** One JSON line per fake-clawhub invocation. */
   calls: () => Promise<string[][]>
   read: (relativePath: string) => Promise<string>
+  /** Hand-edit a file skillbarn owns — the way a project state it never wrote arises. */
+  write: (relativePath: string, contents: string) => Promise<void>
   dispose: () => Promise<void>
+}
+
+/** A version published after the fixture was recorded, keyed by `@owner/slug`. */
+export type Publication = {
+  version: string
+  /** File contents to serve for that version, over the recorded fixture's. */
+  files?: Record<string, string>
+  /** Fail the install of this one skill, which the whole-run modes cannot express. */
+  fails?: boolean
 }
 
 export type FixtureOptions = {
   mode?: FakeMode
+  /** What the registry has published since — how a test makes a skill outdated. */
+  published?: Record<string, Publication>
   /** Written to `skillbarn.json` as its config half. Omitted entirely when absent. */
   config?: Record<string, unknown>
   /** Hand-authored skills that must survive every command. */
@@ -75,6 +88,7 @@ export async function makeFixtureProject(options: FixtureOptions = {}): Promise<
     PATH: `${binDir}${delimiter}${process.env.PATH ?? ''}`,
     FAKE_CLAWHUB_FIXTURES: FIXTURE_REGISTRY,
     FAKE_CLAWHUB_MODE: options.mode ?? 'ok',
+    FAKE_CLAWHUB_PUBLISHED: JSON.stringify(options.published ?? {}),
     FAKE_CLAWHUB_LOG: logFile,
   }
 
@@ -90,8 +104,35 @@ export async function makeFixtureProject(options: FixtureOptions = {}): Promise<
         .map((line) => JSON.parse(line) as string[])
     },
     read: (relativePath: string) => readFile(join(root, ...relativePath.split('/')), 'utf8'),
+    write: (relativePath: string, contents: string) =>
+      writeFile(join(root, ...relativePath.split('/')), contents, 'utf8'),
     dispose: () => rm(root, { recursive: true, force: true }),
   }
+}
+
+/**
+ * Run something with one of the process's streams collected instead of printed.
+ *
+ * The confirmation gate and everything it prints go to stderr; command results go to
+ * stdout. Which one a test reads is therefore part of what it is asserting.
+ */
+export async function capture(
+  stream: 'stdout' | 'stderr',
+  run: () => Promise<unknown>,
+): Promise<string> {
+  const written: string[] = []
+  const target = process[stream]
+  const original = target.write.bind(target)
+  target.write = ((chunk: string | Uint8Array) => {
+    written.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'))
+    return true
+  }) as typeof target.write
+  try {
+    await run()
+  } finally {
+    target.write = original
+  }
+  return written.join('')
 }
 
 /** Apply a fixture's environment for the duration of a test, then put it back. */

@@ -10,19 +10,23 @@
  *   FAKE_CLAWHUB_FIXTURES  directory of `@owner/slug/{inspect.json,files/**}`
  *   FAKE_CLAWHUB_MODE      ok | empty | partial-crash | bad-hash | install-fails |
  *                          bookkeeping-stowaway
+ *   FAKE_CLAWHUB_PUBLISHED JSON: a version published after the fixture was recorded,
+ *                          as `{"@owner/slug": {"version": "1.3.0", "files": {...}}}`.
+ *                          It becomes the latest, and is served for that version only —
+ *                          which is what makes both an update and a *republication*
+ *                          (same version, different files) reproducible.
  *   FAKE_CLAWHUB_LOG       optional file; one JSON line per invocation
  */
 import { createHash } from 'node:crypto'
 import {
   appendFileSync,
-  cpSync,
   existsSync,
   mkdirSync,
   readdirSync,
   readFileSync,
   writeFileSync,
 } from 'node:fs'
-import { join, relative, sep } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 
 const VERSION = '0.23.1-fake'
 
@@ -30,6 +34,7 @@ const argv = process.argv.slice(2)
 const fixtures = process.env.FAKE_CLAWHUB_FIXTURES
 const mode = process.env.FAKE_CLAWHUB_MODE ?? 'ok'
 const logFile = process.env.FAKE_CLAWHUB_LOG
+const published = JSON.parse(process.env.FAKE_CLAWHUB_PUBLISHED ?? '{}')
 
 if (logFile) appendFileSync(logFile, `${JSON.stringify(argv)}\n`)
 
@@ -95,14 +100,36 @@ function fixtureDir(ref) {
 }
 
 /**
- * The `files` manifest is recomputed from the fixture bytes rather than stored, so a
+ * A later publication of a skill, if the test declared one and it is what is being
+ * asked for. `null` means "serve the recorded fixture", which is what every version but
+ * the published one gets — a registry serves per-version bytes, and an update that
+ * could not roll back would not be testable.
+ */
+function publication(ref, version) {
+  const entry = published[`@${ref.owner}/${ref.slug}`]
+  if (entry === undefined) return null
+  return version === undefined || version === entry.version ? entry : null
+}
+
+/** The bytes served for a version: the fixture, with any published overrides applied. */
+function serve(ref, version) {
+  const dir = join(fixtureDir(ref), 'files')
+  const files = new Map(
+    listFiles(dir).map((path) => [path, readFileSync(join(dir, ...path.split('/')))]),
+  )
+  for (const [path, text] of Object.entries(publication(ref, version)?.files ?? {})) {
+    files.set(path, Buffer.from(text, 'utf8'))
+  }
+  return files
+}
+
+/**
+ * The `files` manifest is recomputed from the bytes rather than stored, so a
  * re-recorded fixture can never disagree with itself — except in `bad-hash` mode,
  * which is the point of that mode.
  */
-function fileManifest(ref) {
-  const dir = join(fixtureDir(ref), 'files')
-  return listFiles(dir).map((path) => {
-    const bytes = readFileSync(join(dir, ...path.split('/')))
+function fileManifest(ref, version) {
+  return [...serve(ref, version)].map(([path, bytes]) => {
     const digest =
       mode === 'bad-hash' && path === 'SKILL.md' ? sha256('not what we served') : sha256(bytes)
     return { path, size: bytes.length, sha256: digest, contentType: 'text/markdown' }
@@ -119,11 +146,19 @@ if (argv[0] === '-V' || argv[0] === '--cli-version') {
 if (command === 'inspect') {
   const ref = resolveRef(positionals[0])
   const template = JSON.parse(readFileSync(join(fixtureDir(ref), 'inspect.json'), 'utf8'))
-  template.version.files = fileManifest(ref)
-  if (options.version) {
-    template.version.version = options.version
-    template.latestVersion = template.latestVersion ?? {}
-  }
+  const latest = published[`@${ref.owner}/${ref.slug}`]?.version ?? template.version.version
+  const version = options.version ?? latest
+
+  template.version.version = version
+  template.latestVersion = { ...(template.latestVersion ?? {}), version: latest }
+  template.version.files = fileManifest(ref, version)
+
+  // The real registry serves `skill.description` byte-identical to the SKILL.md in
+  // `version.files` — verified against it, and what `skb update` diffs against the
+  // installed copy. A fake that let the two drift would make that diff meaningless.
+  const skillMd = serve(ref, version).get('SKILL.md')
+  if (skillMd !== undefined) template.skill.description = skillMd.toString('utf8')
+
   process.stdout.write(`${JSON.stringify(template)}\n`)
   process.exit(0)
 }
@@ -140,6 +175,11 @@ if (command === 'install') {
     `${JSON.stringify({ skills: { [`@${ref.owner}/${ref.slug}`]: { version: options.version ?? '1.0.0' } } }, null, 2)}\n`,
   )
 
+  // A failure scoped to one skill, which the whole-run modes cannot express — it is what
+  // puts "the skills that already succeeded stay committed" under test.
+  if (publication(ref, options.version)?.fails) {
+    die(`install failed for @${ref.owner}/${ref.slug}`)
+  }
   if (mode === 'install-fails') die(`install failed for @${ref.owner}/${ref.slug}`)
   if (mode === 'empty') process.exit(0) // reports success, writes nothing
 
@@ -149,7 +189,11 @@ if (command === 'install') {
     die('interrupted', 130)
   }
 
-  cpSync(join(fixtureDir(ref), 'files'), target, { recursive: true })
+  for (const [path, bytes] of serve(ref, options.version)) {
+    const full = join(target, ...path.split('/'))
+    mkdirSync(dirname(full), { recursive: true })
+    writeFileSync(full, bytes)
+  }
 
   // Bookkeeping the real CLI writes at install time. skillbarn strips both in staging,
   // so keeping them here is what puts that stripping under test.
