@@ -1,6 +1,6 @@
 {
   "name": "skillbarn",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Vendor agent skills into a project, reproducibly, from a committed lockfile",
   "author": "shbernal",
   "repository": {
