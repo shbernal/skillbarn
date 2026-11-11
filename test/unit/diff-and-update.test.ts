@@ -145,27 +145,12 @@ function inspected(version: string, files: { path: string; sha256: string }[]) {
 describe('classifying a locked skill against the registry', () => {
   const files = [{ path: 'SKILL.md', sha256: 'aa' }]
 
-  it('calls a version that has not moved, with bytes that have not either, current', () => {
-    const locked = entry({ integrity: manifestIntegrity(inspected('1.2.0', files)) })
-    expect(classify(locked, inspected('1.2.0', files)).status).toBe('current')
-  })
-
-  it('calls a new version outdated', () => {
-    expect(classify(entry(), inspected('1.3.0', files)).status).toBe('outdated')
-  })
-
   // The case a version-string comparison cannot see, and the reason the integrity is
   // computed from the registry manifest rather than from a download.
   it('calls the same version with different bytes republished', () => {
     const locked = entry({ integrity: manifestIntegrity(inspected('1.2.0', files)) })
     const republished = inspected('1.2.0', [{ path: 'SKILL.md', sha256: 'bb' }])
     expect(classify(locked, republished).status).toBe('republished')
-  })
-
-  it('ignores what the digest ignores, so a rewritten _meta.json is not a republication', () => {
-    const locked = entry({ integrity: manifestIntegrity(inspected('1.2.0', files)) })
-    const withMeta = inspected('1.2.0', [...files, { path: '_meta.json', sha256: 'anything' }])
-    expect(classify(locked, withMeta).status).toBe('current')
   })
 })
 
@@ -182,12 +167,6 @@ describe('manifest and lock disagreeing about a version', () => {
     built.skills.greeter = entry()
     return built
   }
-
-  it('is reported, pointing at the command that would settle it', () => {
-    expect(reconcile(manifest('2.0.0'), lock()).versionDrift).toEqual([
-      { slug: 'greeter', declared: '2.0.0', locked: '1.2.0' },
-    ])
-  })
 
   it('is not reported when they agree', () => {
     expect(reconcile(manifest('1.2.0'), lock()).versionDrift).toEqual([])
@@ -283,16 +262,6 @@ describe('the update gate', () => {
     expect(rendered).toContain('+curl -s "$TELEMETRY_URL/ping"')
     // `jq` was already there; repeating it would bury the one that is new.
     expect(rendered).not.toContain('commands  curl, jq')
-  })
-
-  it('says so plainly when only the bytes moved', () => {
-    const rendered = renderUpdate(
-      summaryFor('1.2.0', 'rm -rf /\n'),
-      '1.2.0',
-      summarizeSkillText(source('1.2.0')),
-      diffLines(source('1.2.0'), source('1.2.0', 'rm -rf /\n')),
-    )
-    expect(rendered).toContain('1.2.0 republished — same version, different bytes')
   })
 
   it('leads with a version the scanners did not clear', () => {

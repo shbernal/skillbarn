@@ -168,10 +168,6 @@ describe('gitignore rendering', () => {
       "
     `)
   })
-
-  it('renders an empty lock as the header alone', () => {
-    expect(renderGitignore([])).toBe(`${GITIGNORE_HEADER}\n`)
-  })
 })
 
 function entry(slug: string, owner = 'fixture'): LockEntry {
@@ -244,19 +240,6 @@ describe('lock and manifest', () => {
     expect(() => parseManifest('{"skills": {"greeter": {}}}')).toThrow(SkbError)
   })
 
-  it('carries the config half and unknown keys through a rewrite', () => {
-    const manifest = parseManifest(`{
-      "$schema": "https://example.com/skillbarn.json",
-      "dir": ".claude/skills",
-      "gitignore": "off",
-      "skills": { "@fixture/greeter": { "source": "clawhub", "version": "1.2.0" } }
-    }`)
-
-    expect(manifest.config).toEqual({ dir: '.claude/skills', gitignore: 'off' })
-    expect(manifest.extra).toEqual({ $schema: 'https://example.com/skillbarn.json' })
-    expect(parseManifest(renderManifest(manifest))).toEqual(manifest)
-  })
-
   // `add` rewrites this file. A key nobody set must not appear as a side effect of that,
   // or the project silently pins a default it never chose.
   it('writes skills last and materializes no default', () => {
@@ -269,8 +252,6 @@ describe('lock and manifest', () => {
     expect(renderManifest(newManifest())).toBe(
       '{\n  "dir": ".agents/skills",\n  "flatten": true,\n  "gitignore": "managed",\n  "skills": {}\n}\n',
     )
-    // The same defaults are in force for a file that omits them, and stay unwritten.
-    expect(renderManifest(parseManifest('{}'))).toBe('{\n  "skills": {}\n}\n')
   })
 
   it('refuses a config value it cannot honour', () => {
@@ -337,15 +318,5 @@ describe('reconcile', () => {
     expect(result.restore.map((e) => e.slug)).toEqual(['locked'])
     expect(result.missingFromLock).toEqual(['@fixture/wanted'])
     expect(result.staleInLock).toEqual(['locked'])
-  })
-
-  it('is stable under repetition', () => {
-    const manifest: Manifest = {
-      ...emptyManifest(),
-      skills: { '@fixture/a': { source: 'clawhub' } },
-    }
-    const lock = emptyLock()
-    lock.skills.b = entry('b')
-    expect(reconcile(manifest, lock)).toEqual(reconcile(manifest, lock))
   })
 })

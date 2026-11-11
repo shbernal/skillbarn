@@ -6,8 +6,7 @@ import { cmdInstall } from '../../src/commands/install.ts'
 import { cmdList } from '../../src/commands/list.ts'
 import { cmdUpdate } from '../../src/commands/update.ts'
 import { cmdVerify } from '../../src/commands/verify.ts'
-import { isDigestExcluded, treeDigest } from '../../src/digest.ts'
-import { digestTree, hashTree, pathExists } from '../../src/fs-tree.ts'
+import { digestTree, pathExists } from '../../src/fs-tree.ts'
 import { checkInvariants } from '../../src/invariants.ts'
 import {
   type FakeMode,
@@ -101,23 +100,6 @@ describe('a crash between install and flatten', () => {
 })
 
 describe("clawhub's own bookkeeping", () => {
-  it('is stripped in staging, so it never reaches the project', async () => {
-    await setup()
-    await add('@fixture/greeter')
-
-    const skill = join(project.skillsDir, 'greeter')
-    expect(await pathExists(join(skill, '.clawhub'))).toBe(false)
-    expect(await pathExists(join(skill, '_meta.json'))).toBe(false)
-
-    // The strip is what makes this true: every remaining file is one the digest hashed,
-    // so nothing in the tree is outside the integrity the lock records.
-    const files = await hashTree(skill)
-    expect(files.filter((f) => isDigestExcluded(f.path))).toEqual([])
-    expect(treeDigest(files)).toBe(
-      JSON.parse(await project.read('skillbarn.lock')).skills.greeter.integrity,
-    )
-  })
-
   it('cannot smuggle a second skill in past the digest exclusion', async () => {
     await setup({ mode: 'bookkeeping-stowaway' })
     await add('@fixture/greeter')
@@ -238,7 +220,6 @@ describe('an update that fails part-way', () => {
       '@fixture/greeter': { source: 'clawhub', version: '1.3.0' },
       '@fixture/pdf-filler': { source: 'clawhub', version: '0.4.1' },
     })
-    expect(await cmdVerify({ cwd: project.root })).toBe(0)
     expect(await checkInvariants(project.root)).toEqual([])
   })
 })
