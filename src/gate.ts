@@ -108,7 +108,6 @@ export function extractCommands(body: string): string[] {
       } else {
         fenceLang = (fence[1] ?? '').toLowerCase()
         inShellFence = SHELL_LANGS.has(fenceLang)
-        if (fenceLang === '') inShellFence = false
       }
       continue
     }

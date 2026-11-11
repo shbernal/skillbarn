@@ -1,6 +1,5 @@
 import { SkbError } from './errors.ts'
 import type { Manifest, SkillSource } from './manifest.ts'
-import { formatSkillRef } from './slug.ts'
 
 export const LOCK_FILE = 'skillbarn.lock'
 export const LOCKFILE_VERSION = 1
@@ -25,10 +24,6 @@ export type Lock = {
 
 export function emptyLock(): Lock {
   return { lockfileVersion: LOCKFILE_VERSION, skills: {} }
-}
-
-export function lockRef(entry: LockEntry): string {
-  return formatSkillRef({ owner: entry.owner, slug: entry.slug })
 }
 
 /** Slugs of everything vendored — the sole definition of what the gitignore covers. */
