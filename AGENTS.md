@@ -136,3 +136,7 @@ call.
 Describe the change on its own terms, self-contained, imperative mood. No references to
 planning documents, ticket numbers or internal labels — they mean nothing to someone reading
 the history later.
+
+No AI attribution in commit messages: no `Co-authored-by:` trailer for a tool, no
+"Generated with" line. CI enforces it (`.github/cchk.toml`). The AI disclosure goes in the
+pull request description instead, which the template asks for.
