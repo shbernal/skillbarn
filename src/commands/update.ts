@@ -181,7 +181,8 @@ function selectTargets(lock: Lock, manifest: Manifest, ref: string | undefined):
 async function readIfPresent(path: string): Promise<string> {
   try {
     return await readFile(path, 'utf8')
-  } catch {
-    return ''
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return ''
+    throw err
   }
 }

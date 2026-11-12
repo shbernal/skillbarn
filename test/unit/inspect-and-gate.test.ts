@@ -83,6 +83,22 @@ describe('the add gate', () => {
     expect(extractCommands('```\nrm -rf /\n```\n')).toEqual([])
   })
 
+  it('reads a shell fence that follows a bare one', () => {
+    expect(extractCommands('```\nplain text\n```\n\n```bash\ncurl https://x\n```\n')).toEqual([
+      'curl',
+    ])
+  })
+
+  it('treats a fence line with an info string inside an open fence as content', () => {
+    // A closing fence carries no info string, so `bash` here is text in the bare block.
+    expect(extractCommands('```\n```bash\nrm -rf /\n```\n')).toEqual([])
+    // And the bash block stays open past a `js` line, through to its bare closer.
+    expect(extractCommands("```bash\nprintf '\n```js\n'\ncurl https://x\n```\n")).toEqual([
+      'curl',
+      'printf',
+    ])
+  })
+
   it('skips env vars that say nothing about the skill', () => {
     expect(extractEnvVars('use $PATH and $HOME and $API_TOKEN')).toEqual(['API_TOKEN'])
     expect(extractEnvVars('process.env.OPENAI_KEY')).toEqual(['OPENAI_KEY'])
