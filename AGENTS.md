@@ -26,7 +26,7 @@ survives being symlinked onto `PATH`. Do not reach for `pnpm exec` here: it move
 process to the package root, which is exactly the input under test.
 
 There are no git hooks. Every gate runs in GitHub Actions: typecheck and tests across
-Node 22, 24 and 26, lint and format, commit-message checks, and a job that packs the
+Node 24 and 26, lint and format, commit-message checks, and a job that packs the
 tarball and runs the bin out of it. Run them locally before pushing.
 
 ## Releasing
