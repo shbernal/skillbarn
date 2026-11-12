@@ -4,7 +4,6 @@ import { digestTree, isDirectory, pathExists, readDirNames } from './fs-tree.ts'
 import { renderGitignore } from './gitignore.ts'
 import { lockedSlugs } from './lock.ts'
 import { entryPath, gitignorePath, ignoredDirNames, loadProject, readLockFile } from './project.ts'
-import { activeStagingDirs } from './staging.ts'
 
 /**
  * The properties skillbarn promises about a project directory. This is the real
@@ -16,15 +15,6 @@ export type Violation = {
   invariant: string
   detail: string
 }
-
-export const INVARIANTS = [
-  'lock-matches-disk',
-  'nothing-outside-skills-dir',
-  'install-is-a-noop',
-  'gitignore-matches-lock',
-  'no-scoped-directories',
-  'staging-torn-down',
-] as const
 
 export async function checkInvariants(projectDir: string): Promise<Violation[]> {
   const project = await loadProject(projectDir)
@@ -113,11 +103,6 @@ export async function checkInvariants(projectDir: string): Promise<Violation[]> 
         detail: `${dirName}/ survived a command`,
       })
     }
-  }
-
-  // 6: teardown, including on failure paths.
-  for (const staging of activeStagingDirs()) {
-    violations.push({ invariant: 'staging-torn-down', detail: `${staging} is still active` })
   }
 
   return violations

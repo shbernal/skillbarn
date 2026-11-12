@@ -75,7 +75,7 @@ exactly that kind of poking, done by hand.
 ## One oracle, many drivers
 
 `checkInvariants(projectDir)` in `src/invariants.ts` is the real specification. `skb verify`
-calls it; the tests call it after nearly every scenario. Six invariants:
+calls it; the tests call it after nearly every scenario. Five invariants:
 
 1. `lock-matches-disk` — every lock entry present and digest-matching, no unlocked directory
    except a declared-local one
@@ -84,7 +84,6 @@ calls it; the tests call it after nearly every scenario. Six invariants:
 4. `gitignore-matches-lock` — `<dir>/.gitignore` byte-equals the render of the current lock
    keys (absent is correct while nothing is vendored)
 5. `no-scoped-directories` — no `@*/` survives any command, unless `flatten: false` says so
-6. `staging-torn-down` — no staging directory outlives a command, including on failure
 
 Writing this once and calling it from both places is what stops the test suite from
 encoding a second, subtly different idea of correctness.

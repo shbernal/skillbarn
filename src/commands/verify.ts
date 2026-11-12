@@ -9,7 +9,7 @@ export type VerifyOptions = {
 /**
  * No network, safe in CI. This runs the same invariant checker the tests use, rather
  * than a verify-only reimplementation of it — the digest comparison is only one of the
- * six things that have to hold, and the others fail just as loudly.
+ * five things that have to hold, and the others fail just as loudly.
  */
 export async function cmdVerify(options: VerifyOptions): Promise<number> {
   // Deliberately not inside `checkInvariants`: that function answers whether a project
