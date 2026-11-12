@@ -65,7 +65,7 @@ where `verify` needs neither the network nor `clawhub`:
 - run: pnpm dlx skillbarn verify
 ```
 
-Node 22 or newer. [`clawhub`](https://www.npmjs.com/package/clawhub) has to be on `PATH`
+Node 24 or newer. [`clawhub`](https://www.npmjs.com/package/clawhub) has to be on `PATH`
 for `add` and `install`, and skillbarn deliberately does not bundle it: it drives that
 CLI rather than reimplementing auth, search or publishing, and you upgrade it on its own
 schedule. A missing `clawhub` is a runtime error naming the install command.
