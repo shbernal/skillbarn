@@ -96,20 +96,24 @@ const SHELL_LANGS = new Set(['sh', 'bash', 'zsh', 'shell', 'console', 'shell-ses
 /** Leading executables of shell-fenced lines — what the skill tells an agent to run. */
 export function extractCommands(body: string): string[] {
   const found = new Set<string>()
+  let inFence = false
   let inShellFence = false
-  let fenceLang = ''
 
   for (const line of body.split('\n')) {
     const fence = FENCE.exec(line.trim())
     if (fence !== null) {
-      if (inShellFence || fenceLang !== '') {
-        inShellFence = false
-        fenceLang = ''
-      } else {
-        fenceLang = (fence[1] ?? '').toLowerCase()
-        inShellFence = SHELL_LANGS.has(fenceLang)
+      const lang = (fence[1] ?? '').toLowerCase()
+      if (!inFence) {
+        inFence = true
+        inShellFence = SHELL_LANGS.has(lang)
+        continue
       }
-      continue
+      // Only a bare fence closes one; a fence line with an info string is content.
+      if (lang === '') {
+        inFence = false
+        inShellFence = false
+        continue
+      }
     }
     if (!inShellFence) continue
 
