@@ -123,10 +123,10 @@ export async function capture(
   const written: string[] = []
   const target = process[stream]
   const original = target.write.bind(target)
-  target.write = ((chunk: string | Uint8Array) => {
+  target.write = (chunk: string | Uint8Array) => {
     written.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'))
     return true
-  }) as typeof target.write
+  }
   try {
     await run()
   } finally {

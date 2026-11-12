@@ -33,7 +33,7 @@ const name = fc.stringMatching(/^[a-z0-9][a-z0-9._-]{0,20}$/).filter((s) => /[a-
 const scopedRef = fc.tuple(name, name).map(([owner, slug]) => `@${owner}/${slug}`)
 
 const hex64 = fc.string({
-  unit: fc.constantFrom(...'0123456789abcdef'),
+  unit: fc.constantFrom(...'0123456789abcdef'.split('')),
   minLength: 64,
   maxLength: 64,
 })

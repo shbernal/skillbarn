@@ -39,7 +39,8 @@ jobs:
           node-version: '26'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm check
+      - run: pnpm lint
+      - run: pnpm format:check
 
   package:
     name: packaging
@@ -63,6 +64,17 @@ jobs:
           pnpm pack --pack-destination "$RUNNER_TEMP"
           tar -xzf "$RUNNER_TEMP"/skillbarn-*.tgz -C "$RUNNER_TEMP"
           node "$RUNNER_TEMP/package/dist/cli.js" --version
+
+  # The one job the ruleset requires (with commit-check), so the Node matrix can move
+  # without touching the ruleset.
+  ci-ok:
+    if: always()
+    needs: [test, lint, package]
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "$RESULTS" = success
+        env:
+          RESULTS: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'failure' || 'success' }}
 
   commit-check:
     runs-on: ubuntu-latest

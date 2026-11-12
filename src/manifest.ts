@@ -151,6 +151,7 @@ function parseSkills(skillsRaw: unknown, file: string): Record<string, ManifestE
     }
     const entry = value as { source?: unknown; version?: unknown }
     if (entry.source !== undefined && entry.source !== 'clawhub') {
+      // oxlint-disable-next-line typescript/no-base-to-string -- any value a user wrote, shown as-is
       throw new SkbError(`${file}: entry "${ref}" has unknown source ${String(entry.source)}`)
     }
     if (entry.version !== undefined && typeof entry.version !== 'string') {

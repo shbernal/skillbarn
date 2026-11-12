@@ -37,16 +37,18 @@
     "prepack": "pnpm run build",
     "publint": "publint",
     "typecheck": "tsc --noEmit",
-    "check": "biome check",
-    "check:fix": "biome check --write",
+    "lint": "oxlint --type-aware",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
     "test": "vitest run",
     "record-fixtures": "node scripts/record-fixtures.ts"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.6",
     "@types/node": "^26.6.6",
     "fast-check": "4.10.2",
-    "lefthook": "2.2.2",
+    "oxfmt": "0.78.0",
+    "oxlint": "1.93.0",
+    "oxlint-tsgolint": "7.0.2006",
     "publint": "0.3.25",
     "typescript": "7.0.2",
     "vitest": "5.1.0"
