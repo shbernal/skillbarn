@@ -8,9 +8,9 @@ why is in [`docs/`](docs/); this file is about how to work on it.
 ```sh
 pnpm install
 pnpm test          # vitest
-pnpm typecheck     # tsc --noEmit — biome does not typecheck
-pnpm check         # biome (lint + format)
-pnpm check:fix     # biome --write
+pnpm typecheck     # tsc --noEmit
+pnpm lint          # oxlint --type-aware
+pnpm format        # oxfmt (format:check verifies without rewriting)
 pnpm build         # tsc -> dist/
 pnpm publint       # lint the packed tarball; needs dist/ built first
 ```
@@ -25,9 +25,9 @@ It resolves the checkout from its own path and passes the cwd through untouched,
 survives being symlinked onto `PATH`. Do not reach for `pnpm exec` here: it moves the
 process to the package root, which is exactly the input under test.
 
-Lefthook runs Biome on staged files pre-commit, and `tsc --noEmit` + `vitest run` pre-push.
-Both are cheap; do not skip them. The same gates run in GitHub Actions across Node 22, 24
-and 26, plus a job that packs the tarball and runs the bin out of it.
+There are no git hooks. Every gate runs in GitHub Actions: typecheck and tests across
+Node 22, 24 and 26, lint and format, commit-message checks, and a job that packs the
+tarball and runs the bin out of it. Run them locally before pushing.
 
 ## Releasing
 
@@ -84,9 +84,6 @@ what keeps the source runnable without a build.
 
 **`types: ["node"]` stays explicit** in `tsconfig.json`. Automatic `@types` discovery does
 not find `@types/node` under pnpm's layout.
-
-**pnpm settings live in `pnpm-workspace.yaml`.** pnpm 11 no longer reads the `pnpm` field in
-`package.json` — that is where `allowBuilds` for lefthook's postinstall hook is.
 
 **Never write outside the configured skills directory,** and never point `clawhub
 --workdir` at the project. See [docs/design.md](docs/design.md#installs-go-through-a-staging-directory-outside-the-project).

@@ -16,6 +16,8 @@ export function err(line = ''): void {
  */
 export async function confirm(question: string, assumeYes: boolean): Promise<boolean> {
   if (assumeYes) return true
+  // isTTY is typed boolean but is undefined when stdin is not a terminal.
+  // oxlint-disable-next-line typescript/no-unnecessary-boolean-literal-compare
   if (process.stdin.isTTY !== true) {
     throw new SkbError(
       'refusing to install without confirmation',

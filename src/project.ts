@@ -133,7 +133,7 @@ export function gitignorePath(project: Project): string {
 /**
  * Directory a skill installs into, relative to the skills directory. Flattening is
  * what makes the tree readable by the strictest loaders (Claude Code scans one level
- * deep, OpenCode globs `*​/SKILL.md`); the owner survives as lock metadata instead.
+ * deep, OpenCode's glob matches `SKILL.md` one directory down); the owner survives as lock metadata instead.
  */
 export function installDirName(ref: SkillRef & { owner: string }, flatten: boolean): string {
   return flatten ? ref.slug : `@${ref.owner}/${ref.slug}`

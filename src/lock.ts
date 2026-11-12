@@ -70,6 +70,7 @@ export function parseLock(text: string, file = LOCK_FILE): Lock {
       }
     }
     if (entry.source !== undefined && entry.source !== 'clawhub') {
+      // oxlint-disable-next-line typescript/no-base-to-string -- any value a user wrote, shown as-is
       throw new SkbError(`${file}: entry "${slug}" has unknown source ${String(entry.source)}`)
     }
     if (entry.slug !== undefined && entry.slug !== slug) {

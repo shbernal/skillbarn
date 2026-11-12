@@ -70,6 +70,8 @@ function listFiles(dir, base = dir) {
     if (entry.isDirectory()) out.push(...listFiles(full, base))
     else out.push(relative(base, full).split(sep).join('/'))
   }
+  // Code-unit order on purpose: it is what the real registry's file lists use.
+  // oxlint-disable-next-line typescript/require-array-sort-compare
   return out.sort()
 }
 
@@ -150,7 +152,7 @@ if (command === 'inspect') {
   const version = options.version ?? latest
 
   template.version.version = version
-  template.latestVersion = { ...(template.latestVersion ?? {}), version: latest }
+  template.latestVersion = { ...template.latestVersion, version: latest }
   template.version.files = fileManifest(ref, version)
 
   // The real registry serves `skill.description` byte-identical to the SKILL.md in
