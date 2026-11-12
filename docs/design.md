@@ -87,7 +87,7 @@ that is not skillbarn's state to manage anyway.
 Staging (`mkdtemp` under the system temp dir) buys three things: the repo root stays clean,
 flattening becomes an atomic move into place rather than an in-tree shuffle, and a failed
 download never leaves a half-installed skill behind. The staging directory is removed in a
-`finally`, and "no staging directory survives" is one of the checked invariants.
+`finally`.
 
 Related trap: `CLAWHUB_WORKDIR` / `CLAWDHUB_WORKDIR` silently redirect installs, so the
 child environment is scrubbed of both and `--workdir` is always passed explicitly.
@@ -326,4 +326,4 @@ TTY and `--yes` was not passed. `verify` is read-only and network-free so CI can
 `src/invariants.ts` exports one function that decides whether a project is in a legal state.
 `skb verify` is a driver for it; so is the test suite. There is no second, parallel
 description of correctness that can drift from the first. See [testing](testing.md) for the
-six invariants and why the oracle is shared.
+five invariants and why the oracle is shared.
